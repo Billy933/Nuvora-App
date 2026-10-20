@@ -43,6 +43,15 @@
           "value": "private, no-store"
         }
       ]
+    },
+    {
+      "source": "/order-worker.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, max-age=0"
+        }
+      ]
     }
   ]
 }

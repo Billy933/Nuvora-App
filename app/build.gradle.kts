@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val releaseStorefrontUrl = providers.gradleProperty("nuvoraUrl").orNull ?: ""
 android {
     namespace = "com.example.deliveryapp"
     compileSdk {
@@ -21,11 +22,11 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "STOREFRONT_URL", "\"http://10.0.2.2:3000\"")
+            val storefrontUrl = providers.gradleProperty("nuvoraDevUrl").orNull ?: "https://nuvora-app-one.vercel.app"
+            buildConfigField("String", "STOREFRONT_URL", "\"$storefrontUrl\"")
         }
         release {
-            val storefrontUrl = providers.gradleProperty("nuvoraUrl").orNull ?: ""
-            buildConfigField("String", "STOREFRONT_URL", "\"$storefrontUrl\"")
+            buildConfigField("String", "STOREFRONT_URL", "\"$releaseStorefrontUrl\"")
             optimization {
                 enable = false
             }
@@ -42,8 +43,9 @@ android {
 }
 
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    val configuredUrl = releaseStorefrontUrl
     doFirst {
-        require(providers.gradleProperty("nuvoraUrl").orNull?.matches(Regex("https://[a-zA-Z0-9.-]+(:[0-9]+)?/?")) == true) {
+        require(configuredUrl.matches(Regex("https://[a-zA-Z0-9.-]+(:[0-9]+)?/?"))) {
             "Set -PnuvoraUrl=https://your-deployed-nuvora-domain for release builds"
         }
     }

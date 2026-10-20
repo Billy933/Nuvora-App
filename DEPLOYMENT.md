@@ -8,7 +8,7 @@ Target Supabase project: `qghtkklxewsbeaqhpkfy`
 
 Test hostname: `nuvora.lidetdigital.com` (DNS record is not created yet).
 
-The core application commit `e86b398` is deployed from the supplied GitHub repository at https://nuvora-app-one.vercel.app/. The additive storefront-content migration was applied on 20 October 2026 and public-page/API checks passed. Orders remain paused. An owner Auth user/admin entry, live authenticated dashboard tests and real menu content are still required. See BUILD_STATUS.md for validation evidence and limits.
+The core application commit `e86b398` is deployed from the supplied GitHub repository at https://nuvora-app-one.vercel.app/. The additive storefront-content migration was applied on 20 October 2026 and public-page/API checks passed. Orders remain paused. The confirmed first owner was granted and verified. Live authenticated dashboard tests and real menu content are still required. See BUILD_STATUS.md for validation evidence and limits.
 
 ## 1. Supabase
 
@@ -95,3 +95,7 @@ After the domain works, build with:
 ```
 
 Release signing and device testing are still required. Debug uses the local emulator endpoint by default.
+
+## Staff notifications and Android
+
+See [NOTIFICATIONS.md](NOTIFICATIONS.md) for VAPID configuration, Supabase Vault/cron setup, durable delivery behavior, staff device activation and Android APKs. The order-notification migration and rollback SQL tests are applied/verified; production push variables and the one-minute retry schedule are configured. Device receipt still needs an enabled staff browser.

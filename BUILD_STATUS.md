@@ -35,25 +35,31 @@ Browser-extension file-picker upload testing was blocked because the extension d
 - Live storefront, `/admin`, `/layout.css`, supplied logo, `/api/settings`, and `/api/menu` return HTTP 200. Unauthenticated `/api/admin/orders` returns HTTP 401.
 - Live settings include default Nuvora content. Orders remain paused; no customer/menu/order data was created during cloud checks.
 - SQL confirmed the new `content jsonb NOT NULL DEFAULT '{}'` column. Direct anonymous/authenticated order reads and anonymous checkout-function execution are denied.
-- Initial cloud verification found zero users/admins. The intended owner has since created and confirmed their Auth account; the first owner role still needs the one-time guarded bootstrap. Menu and orders remain empty.
+- Initial cloud verification found zero users/admins. The intended owner has since created and confirmed their Auth account; the first owner role was granted with explicit approval and verified as the sole owner. Menu and orders remain empty.
 - The dedicated-test-project transactional SQL suite has not been run against this production project. No Android device/emulator was connected (`adb devices -l` returned an empty list).
 - Evidence screenshots are in `tmp/release-validation/`.
 
 ## Before opening to customers
 
-1. Finish the guarded first-owner bootstrap for the confirmed Auth account, then verify live dashboard login. Password entry stays with the user.
+1. Verify live dashboard login for the confirmed, bootstrapped owner. Password entry stays with the user.
 2. Complete the live owner-login/photo-upload/content/settings and pickup/delivery checks; keep orders paused outside supervised tests.
 3. Run the transactional SQL checks against a dedicated test project, as specified in that test file.
 4. Enter the actual menu, prices, food photos and approved restaurant information. Confirm delivery rates, opening hours and order availability.
 5. Build/sign an Android release with the verified HTTPS origin and test on a real device. Configure production monitoring/backups and the privacy/retention policy.
 
-Customer accounts, multi-restaurant discovery, maps/ETA, automated delivery fees, online payment, driver dispatch and notifications remain outside this core build. Payments are at pickup/on delivery; delivery availability and fees are confirmed by phone. Overview aggregates use the latest 200 cloud orders and are not payment or accounting reports.
+Customer accounts, multi-restaurant discovery, maps/ETA, automated delivery fees, online payment, driver dispatch remain outside this core build. Payments are at pickup/on delivery; delivery availability and fees are confirmed by phone. Overview aggregates use the latest 200 cloud orders and are not payment or accounting reports.
 
 
 ## Admin management and handover
 
-Owner/admin roles, private access-change history and serialized transfer functions are applied with migration `202610200003_admin_handover.sql`. The transactional SQL suite passed and fixture users/roles/audit entries were verified rolled back. The intended owner Auth account is email-confirmed; granting the initial owner role is a separate explicit action.
+Owner/admin roles, private access-change history and serialized transfer functions are applied with migration `202610200003_admin_handover.sql`. The transactional SQL suite passed and fixture users/roles/audit entries were verified rolled back. The intended owner Auth account is email-confirmed; the initial owner role was explicitly approved, granted and verified as unique.
 
 The **Admins** page adds existing users or generates a private one-time setup link for new users, removes access, and transfers ownership with typed-email confirmation and current-password reauthentication. Transfers require the replacement's confirmed email and first dashboard sign-in, promote exactly one owner and remove outgoing access atomically. No automated invitation email is sent; setup links are shared by the owner. Supabase's HTTPS Site URL and exact `/accept-invite` redirect are configured.
 
 All 15 tests and syntax/configuration checks pass. Isolated Chrome UI tests covered new-account setup-link display, removal confirmation, wrong-password rejection, handover sign-out and replacement-owner access. Regular admins have no access-management controls. The team page has no document horizontal overflow at 320, 390, 768 and 1536 pixels. Evidence: `tmp/admin-handover-validation/`. Real account setup-link consumption and live owner session testing still require the intended users to interact with their own credentials. See HANDOVER.md for the complete workflow and infrastructure handover scope.
+
+## Customer Android and staff notifications - 20 October 2026
+
+The customer Android debug APK now opens the live storefront, uses the supplied logo and routes dashboard/invitation links to the browser. Debug and unsigned release builds pass, including release lint checks. No phone/emulator is connected; signing and physical-device validation remain required.
+
+The web dashboard adds opt-in sound with repeated reminders, a Received-order banner/count, 10-second foreground refresh, device push opt-in, a test notification action and a service worker. Push delivery is queued atomically with each order, retried with leases and exponential backoff, and stopped for accepted orders or removed admins. No customer private details enter the push payload. The notification migration and transactional SQL tests passed on Supabase with rollback fixtures. Production-only push keys are configured in Vercel and the one-minute worker schedule is active in Supabase. Browser tests on an isolated in-memory kitchen verified order arrival, alert navigation and acceptance clearing the banner; mobile width 390 had no document overflow. See NOTIFICATIONS.md for delivery limits and setup. Actual device permission and receipt of a live test push still require verification.

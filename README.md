@@ -55,3 +55,5 @@ Local API tests cover menu CRUD, authoritative totals, sold-out checks, checkout
 Latest local build evidence and remaining release steps: [BUILD_STATUS.md](BUILD_STATUS.md).
 
 Owner-only admin management, private setup links and outgoing-owner removal are documented in [HANDOVER.md](HANDOVER.md). Apply the admin-handover migration and bootstrap the first confirmed owner before using this feature in the cloud.
+
+Restaurant push notifications and customer APK setup: [NOTIFICATIONS.md](NOTIFICATIONS.md).

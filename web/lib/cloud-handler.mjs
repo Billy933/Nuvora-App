@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { createSupabase } from './supabase.mjs';
+import {pushReady,workerAuthorized,validateSubscription,dispatchPush,sendPush} from './push.mjs';
 import { HttpError, validateMenu, validateOrder, validateSettings, validateContent, validateAdminAction, withContent } from './validation.mjs';
 
 const statuses=['Received','Preparing','Ready for pickup','Out for delivery','Completed','Cancelled'];
@@ -15,7 +16,7 @@ async function readBody(req) {
   for await(const chunk of req) {size+=chunk.length;if(size>4300000)throw new HttpError(413,'Request too large');chunks.push(chunk);}
   try{return JSON.parse(Buffer.concat(chunks).toString());}catch{throw new HttpError(400,'Invalid JSON');}
 }
-export function createCloudHandler({env=process.env,backend}={}) {
+export function createCloudHandler({env=process.env,backend,pushSender=sendPush}={}) {
   return async (req,res)=>{
     try {
       const url=new URL(req.url,'http://localhost');
@@ -27,6 +28,11 @@ export function createCloudHandler({env=process.env,backend}={}) {
         if(!allowed.includes(req.headers.origin))throw new HttpError(403,'Invalid request origin');
       }
       const db=backend || createSupabase(env);
+      if(route==='/api/notifications/dispatch'&&req.method==='POST'){
+        if(!workerAuthorized(req.headers.authorization,env.NOTIFICATION_WORKER_SECRET))throw new HttpError(401,'Unauthorized');
+        if(!pushReady(env))throw new HttpError(503,'Push notifications are not configured');
+        return send(res,200,await dispatchPush(db,env,{send:pushSender}));
+      }
       async function limit(scope,max,seconds) {
         if(!env.RATE_LIMIT_SECRET || env.RATE_LIMIT_SECRET.length<32)throw new HttpError(503,'Service protection is not configured yet');
         const ip=env.VERCEL ? (req.headers['x-vercel-forwarded-for'] || 'unknown') : (req.socket?.remoteAddress || 'local');
@@ -65,6 +71,34 @@ export function createCloudHandler({env=process.env,backend}={}) {
       }
       if(route.startsWith('/api/admin/')) {
         if(!await db.isAdmin(access))throw new HttpError(401,'Sign in to continue');
+        if(route==='/api/admin/notifications/test'&&req.method==='POST'){
+          if(!pushReady(env))throw new HttpError(503,'Push notifications are not configured');
+          const actor=await db.getAdmin(access);
+          if(!actor)throw new HttpError(401,'Sign in to continue');
+          await limit('push-test',5,300);
+          const subscription=validateSubscription(await readBody(req));
+          const [saved]=await db.request(`/rest/v1/push_subscriptions?user_id=eq.${actor.id}&endpoint=eq.${encodeURIComponent(subscription.endpoint)}&select=subscription`);
+          if(!saved)throw new HttpError(400,'Enable device notifications first');
+          try{await pushSender(saved.subscription,{type:'test'},env);}catch{throw new HttpError(503,'Test notification could not be sent. Try enabling device notifications again.');}
+          return send(res,200,{ok:true});
+        }
+        if(route==='/api/admin/notifications'&&req.method==='GET'){
+          const actor=await db.getAdmin(access);
+          if(!actor)throw new HttpError(401,'Sign in to continue');
+          const endpoints=pushReady(env)?await db.request(`/rest/v1/push_subscriptions?user_id=eq.${actor.id}&select=endpoint`):[];
+          return send(res,200,{configured:pushReady(env),publicKey:pushReady(env)?env.VAPID_PUBLIC_KEY:null,endpoints:endpoints.map(s=>s.endpoint)});
+        }
+        if(route==='/api/admin/notifications'&&['POST','DELETE'].includes(req.method)){
+          const actor=await db.getAdmin(access);
+          if(!actor)throw new HttpError(401,'Sign in to continue');
+          const subscription=validateSubscription(await readBody(req));
+          if(req.method==='POST'){
+            if(!pushReady(env))throw new HttpError(503,'Push notifications are not configured yet');
+            await limit('push-subscribe',30,900);
+            await db.rpc('nuvora_save_push',{p_actor:actor.id,p_subscription:subscription});
+          }else await db.request(`/rest/v1/push_subscriptions?user_id=eq.${actor.id}&endpoint=eq.${encodeURIComponent(subscription.endpoint)}`,{method:'DELETE'});
+          return send(res,200,{ok:true});
+        }
         if(route==='/api/admin/me'&&req.method==='GET'){
           const admin=await db.getAdmin(access);
           if(!admin)throw new HttpError(401,'Sign in to continue');
@@ -149,6 +183,8 @@ export function createCloudHandler({env=process.env,backend}={}) {
         const o=validateOrder(await readBody(req));
         const id=randomBytes(6).toString('hex').toUpperCase(), token=randomBytes(24).toString('hex');
         const result=await db.rpc('nuvora_place_order',{p_id:id,p_token_hash:createHash('sha256').update(token).digest('hex'),p_order:o});
+        // The transaction has saved a durable delivery record. A failed send must never make checkout fail.
+        if(pushReady(env))await dispatchPush(db,env,{send:pushSender,orderId:id}).catch(()=>console.error('Push dispatch deferred to retry worker'));
         return send(res,201,{...result,token});
       }
       if(/^\/api\/orders\/[A-F0-9]{12}$/.test(route) && req.method==='GET') {
