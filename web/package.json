@@ -1,0 +1,1 @@
+{"name":"nuvora","private":true,"type":"module","scripts":{"start":"node --env-file-if-exists=.env.local --experimental-sqlite server.mjs","test":"node --experimental-sqlite --test test.mjs cloud.test.mjs","check":"node scripts/check.mjs"},"engines":{"node":">=22.13 <27"}}
