@@ -1,12 +1,14 @@
 # Nuvora deployment
 
-Target repository: https://github.com/billyaddissystem-debug/Nuvora-App
+Target repository: https://github.com/Billy933/Nuvora-App
+
+Existing Vercel project: https://vercel.com/lidet-digital/nuvora-app
 
 Target Supabase project: `qghtkklxewsbeaqhpkfy`
 
 Test hostname: `nuvora.lidetdigital.com` (DNS record is not created yet).
 
-This file describes the prepared deployment. It does not mean the repository has been updated, the migration has run, or a deployment exists. Those actions require connected accounts.
+The owner has created the Vercel project and configured Supabase environment variables there. The linked repository, deployed URL, environment variable names, applied schema and live application behavior still need verification. Adding variables alone does not apply the database migration.
 
 ## 1. Supabase
 
@@ -49,6 +51,8 @@ Create these **server-side** environment variables in Vercel Settings, not in so
 - `SUPABASE_SECRET_KEY`: the project's secret API key
 - `RATE_LIMIT_SECRET`: at least 32 random characters (generate locally, do not reuse a password)
 - `PUBLIC_ORIGIN`: `https://nuvora.lidetdigital.com`, once the domain is ready
+
+The server also accepts integration-style names: `NEXT_PUBLIC_SUPABASE_URL` for the URL, `SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the publishable/legacy anon key, and `SUPABASE_SERVICE_ROLE_KEY` for the server-only secret/legacy service-role key. Explicit SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / SUPABASE_SECRET_KEY values take precedence. Never put the service-role or secret key in a NEXT_PUBLIC variable. RATE_LIMIT_SECRET is a separate app secret and must also be configured.
 
 For the initial deployment, leave PUBLIC_ORIGIN unset: the app permits the exact deployment origin from VERCEL_URL. After adding a production domain, set PUBLIC_ORIGIN and redeploy. Do not connect untrusted pull-request preview deployments to the restaurant's live database. For a test deployment, use a dedicated test Supabase project; switch to the intended production project deliberately.
 

@@ -78,3 +78,18 @@ test('Supabase adapter verifies users, rejects non-admins, preserves server-only
  const upload=calls.find(c=>c.url.includes('/object/menu-photos/'));assert.equal(upload.options.headers.apikey,remote.SUPABASE_SECRET_KEY);
  await assert.rejects(db.storeImage('https://evil.example/photo.png'),/Choose a JPEG/);
 });
+
+test('Supabase adapter accepts Vercel integration aliases and keeps legacy service keys server-side',async()=>{
+ let observed;
+ const db=createSupabase({NEXT_PUBLIC_SUPABASE_URL:'https://example.supabase.co',NEXT_PUBLIC_SUPABASE_ANON_KEY:'legacy-anon',SUPABASE_SERVICE_ROLE_KEY:'eyJ.legacy-service'},async(url,options)=>{
+  observed={url,options};return new Response('[]',{status:200});
+ });
+ await db.request('/rest/v1/menu?select=*');
+ assert.equal(observed.url,'https://example.supabase.co/rest/v1/menu?select=*');
+ assert.equal(observed.options.headers.apikey,'eyJ.legacy-service');
+ assert.equal(observed.options.headers.Authorization,'Bearer eyJ.legacy-service');
+ await db.request('/auth/v1/user',{auth:true,accessToken:'user-jwt'});
+ assert.equal(observed.options.headers.apikey,'legacy-anon');
+ assert.equal(observed.options.headers.Authorization,'Bearer user-jwt');
+ assert.throws(()=>createSupabase({NEXT_PUBLIC_SUPABASE_URL:'https://example.supabase.co',NEXT_PUBLIC_SUPABASE_ANON_KEY:'anon'}),/not configured/);
+});

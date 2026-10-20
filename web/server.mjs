@@ -13,7 +13,7 @@ const db = new DatabaseSync(process.env.DB_PATH || path.join(root,'data/nuvora.s
 db.exec(`CREATE TABLE IF NOT EXISTS menu(id INTEGER PRIMARY KEY, name TEXT, category TEXT, description TEXT, price INTEGER, image TEXT, available INTEGER); CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY, token TEXT, created TEXT, status TEXT, payload TEXT);`);
 db.exec('CREATE TABLE IF NOT EXISTS restaurant_settings(id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)');
 db.prepare('INSERT OR IGNORE INTO restaurant_settings VALUES(1,?)').run(JSON.stringify({...defaultSettings,accepting_orders:true}));
-const cloud = process.env.SUPABASE_URL ? createCloudHandler() : null;
+const cloud = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) ? createCloudHandler() : null;
 const password = process.env.ADMIN_PASSWORD || randomBytes(18).toString('hex');
 if (!cloud && !process.env.ADMIN_PASSWORD) console.log('LOCAL DEMO ONLY - temporary admin password:',password);
 const sessions = new Map();
