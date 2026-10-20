@@ -8,7 +8,7 @@ Target Supabase project: `qghtkklxewsbeaqhpkfy`
 
 Test hostname: `nuvora.lidetdigital.com` (DNS record is not created yet).
 
-The owner has created the Vercel project and configured Supabase environment variables there. The linked repository, deployed URL, environment variable names, applied schema and live application behavior still need verification. Adding variables alone does not apply the database migration.
+The core application commit `e86b398` is deployed from the supplied GitHub repository at https://nuvora-app-one.vercel.app/. The additive storefront-content migration was applied on 20 October 2026 and public-page/API checks passed. Orders remain paused. An owner Auth user/admin entry, live authenticated dashboard tests and real menu content are still required. See BUILD_STATUS.md for validation evidence and limits.
 
 ## 1. Supabase
 

@@ -1,6 +1,6 @@
 # Core restaurant build - 20 October 2026
 
-The single-restaurant storefront and owner dashboard are implemented and validated locally. This is not a production deployment or a signed Android release. This report records the validated source snapshot; live deployment is tracked separately.
+The single-restaurant storefront and owner dashboard are implemented, validated locally, and deployed at https://nuvora-app-one.vercel.app/ from application commit e86b398. The additive storefront-content migration is applied to Supabase project qghtkklxewsbeaqhpkfy. This is not a signed Android release.
 
 ## Implemented
 
@@ -29,11 +29,21 @@ Browser tests used a separate in-memory database on port 3087. They did not alte
 
 Browser-extension file-picker upload testing was blocked because the extension does not have local file access. The image API payload and mocked cloud Storage handling passed; perform one actual photo selection/upload on the deployed dashboard. Android compiled successfully using Android Studio's bundled JDK, but emulator/physical-device runtime testing has not been performed. The debug APK points at the local emulator endpoint, not the live website.
 
-## Before release
+## Cloud verification - 20 October 2026
 
-1. Publish the reviewed application commit. Do not include local IDE state, Gradle caches, test screenshots or reference-design folders by accident.
-2. Apply `supabase/migrations/202610200002_storefront_content.sql` after the base migration. Existing production migration state has not been verified.
-3. Deploy the web changes and verify owner login, real photo uploads, content/settings persistence and the pickup/delivery order flow against the actual cloud database. Run the transactional SQL checks.
+- GitHub main contains application commit `e86b398`; Vercel reported deployment success.
+- Live storefront, `/admin`, `/layout.css`, supplied logo, `/api/settings`, and `/api/menu` return HTTP 200. Unauthenticated `/api/admin/orders` returns HTTP 401.
+- Live settings include default Nuvora content. Orders remain paused; no customer/menu/order data was created during cloud checks.
+- SQL confirmed the new `content jsonb NOT NULL DEFAULT '{}'` column. Direct anonymous/authenticated order reads and anonymous checkout-function execution are denied.
+- The project currently has zero Auth users, zero admin allowlist entries, zero menu items and zero orders. An owner login must be created before live dashboard and order-flow tests can proceed.
+- The dedicated-test-project transactional SQL suite has not been run against this production project. No Android device/emulator was connected (`adb devices -l` returned an empty list).
+- Evidence screenshots are in `tmp/release-validation/`.
+
+## Before opening to customers
+
+1. Create the owner email/password user in Supabase and grant the confirmed user dashboard admin access. Password entry must be done directly by the user.
+2. Complete the live owner-login/photo-upload/content/settings and pickup/delivery checks; keep orders paused outside supervised tests.
+3. Run the transactional SQL checks against a dedicated test project, as specified in that test file.
 4. Enter the actual menu, prices, food photos and approved restaurant information. Confirm delivery rates, opening hours and order availability.
 5. Build/sign an Android release with the verified HTTPS origin and test on a real device. Configure production monitoring/backups and the privacy/retention policy.
 
