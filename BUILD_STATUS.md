@@ -27,7 +27,7 @@ The single-restaurant storefront and owner dashboard are implemented, validated 
 
 Browser tests used a separate in-memory database on port 3087. They did not alter the restaurant's local SQLite database or cloud data. Screenshots contain disposable test dishes/orders and are in `tmp/build-validation/`.
 
-Browser-extension file-picker upload testing was blocked because the extension does not have local file access. The image API payload and mocked cloud Storage handling passed; perform one actual photo selection/upload on the deployed dashboard. Android compiled successfully using Android Studio's bundled JDK, but emulator/physical-device runtime testing has not been performed. The debug APK points at the local emulator endpoint, not the live website.
+Browser-extension file-picker upload testing was blocked because the extension does not have local file access. The image API payload and mocked cloud Storage handling passed; perform one actual photo selection/upload on the deployed dashboard. Android compiled successfully using Android Studio's bundled JDK, but emulator/physical-device runtime testing has not been performed. The debug APK now points at the live storefront; local emulator access is an explicit build override.
 
 ## Cloud verification - 20 October 2026
 
@@ -63,3 +63,5 @@ All 15 tests and syntax/configuration checks pass. Isolated Chrome UI tests cove
 The customer Android debug APK now opens the live storefront, uses the supplied logo and routes dashboard/invitation links to the browser. Debug and unsigned release builds pass, including release lint checks. No phone/emulator is connected; signing and physical-device validation remain required.
 
 The web dashboard adds opt-in sound with repeated reminders, a Received-order banner/count, 10-second foreground refresh, device push opt-in, a test notification action and a service worker. Push delivery is queued atomically with each order, retried with leases and exponential backoff, and stopped for accepted orders or removed admins. No customer private details enter the push payload. The notification migration and transactional SQL tests passed on Supabase with rollback fixtures. Production-only push keys are configured in Vercel and the one-minute worker schedule is active in Supabase. Browser tests on an isolated in-memory kitchen verified order arrival, alert navigation and acceptance clearing the banner; mobile width 390 had no document overflow. See NOTIFICATIONS.md for delivery limits and setup. Actual device permission and receipt of a live test push still require verification.
+
+Deployment verification: application commit `93765cd` is pushed and Vercel reports Ready. The live dashboard contains the notification controls and has no captured JavaScript errors on the signed-out page. Supabase cron successfully called the new worker with HTTP 200 at 14:40 UTC. Fixture counts were verified as zero after rollback. The current Node suite has 21 passing tests.

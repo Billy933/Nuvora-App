@@ -6,10 +6,11 @@ Deployment target and exact setup steps: [DEPLOYMENT.md](DEPLOYMENT.md). Cloud d
 
 ## Run locally
 
-Requires Node.js 22.13 or later (tested on Node 26). No npm dependencies.
+Requires Node.js 22.13 or later (tested on Node 26). Install the locked dependencies with npm ci (includes encrypted Web Push delivery).
 
 ```powershell
 cd web
+npm.cmd ci
 $env:ADMIN_PASSWORD = 'choose-a-long-private-password'
 npm.cmd start
 ```
@@ -30,7 +31,7 @@ npm.cmd run check
 
 ## Android
 
-Start the web server and run the debug app in Android Studio's emulator. The shell points at `http://10.0.2.2:3000` (the emulator's address for the host computer). HTTP is permitted for that development address only. A physical phone requires a reachable hosted website.
+The debug app opens the live storefront at https://nuvora-app-one.vercel.app. For local emulator development, start the web server and build with -PnuvoraDevUrl=http://10.0.2.2:3000. HTTP is permitted for that emulator development address only. Dashboard and invitation links open in the browser.
 
 For release, first deploy the Node server behind HTTPS, then build with the hosted origin:
 
@@ -45,8 +46,8 @@ Configure Android release signing before distribution. The release task rejects 
 - Follow the Supabase/Vercel setup in DEPLOYMENT.md, verify the live system, and configure backups.
 - Add the actual menu, prices and photos. Restaurant contact, hours, order availability, coverage and rates can be edited in the dashboard. Confirm the provisional nearby cutoff before publishing rates.
 - Current delivery orders request an address and landmark. The checkout explicitly says the owner will call to confirm delivery availability and its fee before preparation. The total covers food only.
-- Payment is at pickup or on delivery. There is no payment processing, map pin, push/SMS notification, scheduling, driver dispatch, or automated delivery fee calculation yet.
-- Customer menu, storefront content and order status refresh every 20 seconds while the page is visible; admin orders refresh every 20 seconds. Order tracking and favorites are remembered in that browser/device only.
+- Payment is at pickup or on delivery. There is no payment processing, map pin, SMS/email notification, scheduling, driver dispatch, or automated delivery fee calculation yet.
+- Customer menu, storefront content and order status refresh every 20 seconds while the page is visible; admin orders refresh every 10 seconds while visible and on return. Order tracking and favorites are remembered in that browser/device only.
 - The dashboard Storefront page edits the restaurant name, logo, banner image, headings and about text. Apply the additive storefront-content migration before using it in the cloud. Desktop, tablet and mobile layouts are included for the storefront and dashboard.
 - Cloud login and checkout have persistent request limits. Configure monitoring, backups and a privacy/retention policy before launch.
 

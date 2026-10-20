@@ -84,7 +84,7 @@ Pickup: Bole, Selam City Mall. Contact: +251919158071. Hours: 07:00–23:00 Addi
 
 The 15 km nearby cutoff is provisional. Delivery pricing confirmation is off initially, so unconfirmed rates are not advertised to customers. Even after rates are confirmed, the app does not calculate route distance or automatic delivery fees: it clearly asks customers to expect a phone confirmation before food preparation. No map pin, routing service or driver dispatch is configured.
 
-Payments remain at pickup or delivery. There is no payment gateway or paid-state workflow yet. Orders refresh while pages are open; no SMS/push/email alert is wired. Admin list displays the latest 200 orders; pagination/reporting is not implemented.
+Payments remain at pickup or delivery. There is no payment gateway or paid-state workflow yet. Orders refresh while pages are open; staff web push and dashboard sound alerts are wired; SMS/email escalation is not included. Admin list displays the latest 200 orders; pagination/reporting is not implemented.
 
 ## Android release
 
@@ -94,7 +94,7 @@ After the domain works, build with:
 .\gradlew.bat assembleRelease -PnuvoraUrl=https://nuvora.lidetdigital.com
 ```
 
-Release signing and device testing are still required. Debug uses the local emulator endpoint by default.
+Release signing and device testing are still required. Debug uses the live storefront by default; use -PnuvoraDevUrl=http://10.0.2.2:3000 for emulator development.
 
 ## Staff notifications and Android
 
