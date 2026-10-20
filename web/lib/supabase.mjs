@@ -35,6 +35,16 @@ export function createSupabase(env = process.env, fetcher = fetch) {
     const rows=await request(`/rest/v1/admin_users?user_id=eq.${encodeURIComponent(user.id)}&select=user_id`);
     return rows.length === 1;
   }
+  async function getAdmin(accessToken) {
+    if(!accessToken)return null;
+    const user=await request('/auth/v1/user',{auth:true,accessToken});
+    if(!user?.id)return null;
+    const [row]=await request(`/rest/v1/admin_users?user_id=eq.${encodeURIComponent(user.id)}&select=user_id,role`);
+    return row ? {id:user.id,email:user.email,role:row.role} : null;
+  }
+  async function markLogin(id){
+    await request(`/rest/v1/admin_users?user_id=eq.${encodeURIComponent(id)}`,{method:'PATCH',body:{last_login_at:new Date().toISOString()}});
+  }
   async function storeImage(image) {
     if (!image) return '';
     if (image.startsWith(`${url}/storage/v1/object/public/menu-photos/`) &&
@@ -49,13 +59,25 @@ export function createSupabase(env = process.env, fetcher = fetch) {
     if(!r.ok) throw new HttpError(503, 'Unable to upload photo. Please try again.');
     return `${url}/storage/v1/object/public/menu-photos/${name}`;
   }
-  return {request,rpc,isAdmin,storeImage,
+  return {request,rpc,isAdmin,getAdmin,markLogin,storeImage,
+    async createSetupLink(email,redirectTo){
+      const data=await request(`/auth/v1/admin/generate_link?redirect_to=${encodeURIComponent(redirectTo)}`,{method:'POST',body:{type:'invite',email}});
+      if(typeof data?.action_link!=='string'||!data.action_link.startsWith(`${url}/auth/v1/verify?`))throw new HttpError(503,'Unable to create a setup link. Please retry.');
+      return data.action_link;
+    },
+    async verifyPassword(id,email,password){
+      const s=await request('/auth/v1/token?grant_type=password',{method:'POST',auth:true,body:{email,password}});
+      try{if(s.user?.id!==id)throw new HttpError(401,'Confirm your current owner password');}
+      finally{if(s.access_token)await request('/auth/v1/logout?scope=local',{method:'POST',auth:true,accessToken:s.access_token}).catch(()=>{});}
+    },
     async login(email,password) {
       const session=await request('/auth/v1/token?grant_type=password',{method:'POST',auth:true,body:{email,password}});
       if (!await isAdmin(session.access_token)) {
         await request('/auth/v1/logout?scope=local',{method:'POST',auth:true,accessToken:session.access_token}).catch(()=>{});
         throw new HttpError(403, 'This account does not have restaurant admin access');
       }
+      const user=await request('/auth/v1/user',{auth:true,accessToken:session.access_token});
+      await markLogin(user.id);
       return session;
     }
   };

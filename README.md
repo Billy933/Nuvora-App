@@ -53,3 +53,5 @@ Configure Android release signing before distribution. The release task rejects 
 Local API tests cover menu CRUD, authoritative totals, sold-out checks, checkout validation, tracking privacy and fulfillment updates. Cloud tests use mocked Supabase responses to check authentication, secure cookies, origin checks, rate limits, token hashing, settings validation and photo uploads. Transactional SQL checks are supplied separately and must run against Supabase after applying the migration. Neither mocked tests nor syntax checks prove live deployment, browser behavior or Android compatibility.
 
 Latest local build evidence and remaining release steps: [BUILD_STATUS.md](BUILD_STATUS.md).
+
+Owner-only admin management, private setup links and outgoing-owner removal are documented in [HANDOVER.md](HANDOVER.md). Apply the admin-handover migration and bootstrap the first confirmed owner before using this feature in the cloud.

@@ -4,17 +4,45 @@
   "buildCommand": "npm run check",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index?route=:path*" },
-    { "source": "/admin", "destination": "/admin.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?route=:path*"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/accept-invite",
+      "destination": "/accept-invite.html"
+    }
   ],
   "headers": [
-    { "source": "/(.*)", "headers": [
-      { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy", "value": "same-origin" },
-      { "key": "X-Frame-Options", "value": "DENY" }
-    ] },
-    { "source": "/api/:path*", "headers": [
-      { "key": "Cache-Control", "value": "private, no-store" }
-    ] }
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
+    },
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
+    }
   ]
 }

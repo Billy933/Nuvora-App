@@ -37,6 +37,18 @@ export function validateContent(c) {
 export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
+export function validateAdminAction(input){
+  if(!input||typeof input!=='object'||!['add','remove','transfer'].includes(input.action)||
+    typeof input.email!=='string'||input.email.length>254||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+    throw new HttpError(400,'Choose an action and enter a valid email');
+  }
+  const email=input.email.trim().toLowerCase();
+  if(input.action==='transfer'&&(input.confirmation?.trim().toLowerCase()!==email||
+    typeof input.password!=='string'||!input.password||input.password.length>500)) {
+    throw new HttpError(400,'Type the new owner email and confirm your current password');
+  }
+  return {action:input.action,email,password:input.password};
+}
 export function validateSettings(s) {
   if(!s || typeof s!=='object')throw new HttpError(400,'Invalid restaurant settings');
   if (typeof s.pickup_address !== 'string' || !s.pickup_address.trim() || s.pickup_address.length > 300 ||

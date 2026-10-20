@@ -15,19 +15,19 @@ The core application commit `e86b398` is deployed from the supplied GitHub repos
 1. Inspect the target project first to confirm it is dedicated to Nuvora and does not already contain conflicting `menu`, `orders`, or other tables from this migration.
 2. Apply [the migration](supabase/migrations/202610200001_nuvora.sql). It creates menu, orders, settings, admin allowlist, persistent rate limiting and a `menu-photos` Storage bucket. Apply once; do not rerun the same migration over an existing schema.
    Then apply [the additive storefront-content migration](supabase/migrations/202610200002_storefront_content.sql). It adds the JSON content column used by the dashboard Storefront editor and preserves existing menu items and orders. Existing installations need only this second migration if the first is already applied.
+   Apply [the admin-handover migration](supabase/migrations/202610200003_admin_handover.sql) next. It adds owner/admin roles, private access-change records and serialized handover functions. Before bootstrapping the first owner, run [the transactional handover checks](supabase/tests/admin-handover.sql), whose fixtures roll back.
 3. Run [the transactional SQL checks](supabase/tests/checkout.sql). Their test data rolls back.
 4. Create the owner's email/password account in Supabase Authentication. Disable public signups for this owner-only dashboard. The app itself has no registration endpoint.
 5. Grant just that account admin access (replace the placeholder with the confirmed owner's email):
 
 ```sql
-insert into public.admin_users(user_id)
-select id from auth.users where lower(email)=lower('OWNER_EMAIL_HERE')
-on conflict do nothing;
+-- Use the guarded one-time script in supabase/bootstrap-owner.sql.
+-- Replace OWNER_EMAIL_HERE there with the confirmed owner's email.
 ```
 
-Verify exactly one intended user is present in `admin_users`. A normal Supabase user alone is insufficient for dashboard access.
+Bootstrap the first owner using `supabase/bootstrap-owner.sql`. Verify exactly one intended owner is present in `admin_users`. Later admin additions/removals and ownership transfers use the dashboard; see HANDOVER.md. A normal Supabase user alone is insufficient for dashboard access.
 
-The Data API must expose the `public` schema. The migration grants service_role access; it grants no anon/authenticated table access. Both functions are executable only by service_role. Menu photos are public; orders, names, phones and delivery addresses are private. The server validates admin membership before any admin operation.
+The Data API must expose the `public` schema. The migration grants service_role access; it grants no anon/authenticated table access. Checkout, rate-limit and admin-management functions are executable only by service_role. Menu photos are public; orders, names, phones and delivery addresses are private. The server validates admin membership before any admin operation.
 
 ## 2. GitHub
 

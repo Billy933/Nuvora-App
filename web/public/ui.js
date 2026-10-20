@@ -1,3 +1,4 @@
+if(location.pathname!=='/accept-invite'&&location.pathname!=='/accept-invite.html'&&new URLSearchParams(location.hash.slice(1)).has('access_token'))location.replace('/accept-invite'+location.hash);
 export const $=(s,root=document)=>root.querySelector(s);
 export const money=n=>`ETB ${(Number(n)/100).toFixed(2)}`;
 export const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

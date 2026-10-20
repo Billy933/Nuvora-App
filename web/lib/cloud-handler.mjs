@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { createSupabase } from './supabase.mjs';
-import { HttpError, validateMenu, validateOrder, validateSettings, validateContent, withContent } from './validation.mjs';
+import { HttpError, validateMenu, validateOrder, validateSettings, validateContent, validateAdminAction, withContent } from './validation.mjs';
 
 const statuses=['Received','Preparing','Ready for pickup','Out for delivery','Completed','Cancelled'];
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
@@ -38,6 +38,17 @@ export function createCloudHandler({env=process.env,backend}={}) {
       const cookie=(token,age)=>`nuvora_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${age}${secure?'; Secure':''}`;
       const session=(req.headers.cookie||'').match(/(?:^|;\s*)nuvora_session=([^;]+)/)?.[1];
       const access=session ? decodeURIComponent(session) : '';
+      if(route==='/api/invitation/accept'&&req.method==='POST'){
+        await limit('invitation',10,900);
+        const b=await readBody(req);
+        if(typeof b?.token!=='string'||!b.token||b.token.length>10000||typeof b.password!=='string'||b.password.length<12||b.password.length>128)throw new HttpError(400,'Use your invitation link and choose a password of 12 to 128 characters');
+        const admin=await db.getAdmin(b.token);
+        if(!admin)throw new HttpError(403,'This invitation no longer has dashboard access');
+        await db.request('/auth/v1/user',{method:'PUT',auth:true,accessToken:b.token,body:{password:b.password}});
+        await db.markLogin(admin.id);
+        res.setHeader('Set-Cookie',cookie(b.token,3600));
+        return send(res,200,{ok:true});
+      }
       if(route==='/api/login' && req.method==='POST') {
         await limit('login',10,900);
         const b=await readBody(req);
@@ -54,6 +65,37 @@ export function createCloudHandler({env=process.env,backend}={}) {
       }
       if(route.startsWith('/api/admin/')) {
         if(!await db.isAdmin(access))throw new HttpError(401,'Sign in to continue');
+        if(route==='/api/admin/me'&&req.method==='GET'){
+          const admin=await db.getAdmin(access);
+          if(!admin)throw new HttpError(401,'Sign in to continue');
+          return send(res,200,admin);
+        }
+        if(route==='/api/admin/team'){
+          const actor=await db.getAdmin(access);
+          if(!actor)throw new HttpError(401,'Sign in to continue');
+          if(actor.role!=='owner')throw new HttpError(403,'Only the owner can manage admins');
+          if(req.method==='GET')return send(res,200,await db.rpc('nuvora_list_admins',{p_actor:actor.id}));
+          if(req.method==='POST'){
+            await limit('admin-access',20,900);
+            const action=validateAdminAction(await readBody(req));
+            if(action.email===actor.email?.toLowerCase())throw new HttpError(400,'Choose a different account; use handover to leave');
+            const args={p_actor:actor.id,p_action:action.action,p_email:action.email};
+            let setupLink=null;
+            if(action.action==='add'){
+              const info=await db.rpc('nuvora_manage_admin',{...args,p_action:'inspect'});
+              if(!info.exists||!info.confirmed){
+                const origin=env.PUBLIC_ORIGIN||(env.VERCEL_URL&&`https://${env.VERCEL_URL}`);
+                if(!origin||!/^https:\/\/[^/?#]+$/.test(origin))throw new HttpError(503,'Configure the public HTTPS origin before adding admins');
+                setupLink=await db.createSetupLink(action.email,`${origin}/accept-invite`);
+              }
+            }
+            if(action.action==='transfer')await db.verifyPassword(actor.id,actor.email,action.password);
+            const result=await db.rpc('nuvora_manage_admin',args);
+            if(action.action==='transfer')res.setHeader('Set-Cookie',cookie('',0));
+            return send(res,200,{...result,...(setupLink?{setup_link:setupLink}:{})});
+          }
+          throw new HttpError(405,'Method not allowed');
+        }
         if(route==='/api/admin/content' && req.method==='PUT') {
           const content=validateContent(await readBody(req));
           for(const key of ['hero_image','logo_image']) {

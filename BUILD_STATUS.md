@@ -14,7 +14,7 @@ The single-restaurant storefront and owner dashboard are implemented, validated 
 
 | Check | Result |
 | --- | --- |
-| `npm.cmd --prefix web test` | 10 tests pass, including local/cloud content persistence, authorization, origin rejection and image handling |
+| `npm.cmd --prefix web test` | 15 tests pass, including local/cloud content persistence, authorization, origin rejection and image handling |
 | `npm.cmd --prefix web run check` | JavaScript syntax and Vercel configuration pass |
 | `git diff --check` | Pass |
 | Chrome desktop/mobile | Reviewed storefront, login, dashboard, menu editor, orders, settings and content editor |
@@ -35,16 +35,25 @@ Browser-extension file-picker upload testing was blocked because the extension d
 - Live storefront, `/admin`, `/layout.css`, supplied logo, `/api/settings`, and `/api/menu` return HTTP 200. Unauthenticated `/api/admin/orders` returns HTTP 401.
 - Live settings include default Nuvora content. Orders remain paused; no customer/menu/order data was created during cloud checks.
 - SQL confirmed the new `content jsonb NOT NULL DEFAULT '{}'` column. Direct anonymous/authenticated order reads and anonymous checkout-function execution are denied.
-- The project currently has zero Auth users, zero admin allowlist entries, zero menu items and zero orders. An owner login must be created before live dashboard and order-flow tests can proceed.
+- Initial cloud verification found zero users/admins. The intended owner has since created and confirmed their Auth account; the first owner role still needs the one-time guarded bootstrap. Menu and orders remain empty.
 - The dedicated-test-project transactional SQL suite has not been run against this production project. No Android device/emulator was connected (`adb devices -l` returned an empty list).
 - Evidence screenshots are in `tmp/release-validation/`.
 
 ## Before opening to customers
 
-1. Create the owner email/password user in Supabase and grant the confirmed user dashboard admin access. Password entry must be done directly by the user.
+1. Finish the guarded first-owner bootstrap for the confirmed Auth account, then verify live dashboard login. Password entry stays with the user.
 2. Complete the live owner-login/photo-upload/content/settings and pickup/delivery checks; keep orders paused outside supervised tests.
 3. Run the transactional SQL checks against a dedicated test project, as specified in that test file.
 4. Enter the actual menu, prices, food photos and approved restaurant information. Confirm delivery rates, opening hours and order availability.
 5. Build/sign an Android release with the verified HTTPS origin and test on a real device. Configure production monitoring/backups and the privacy/retention policy.
 
 Customer accounts, multi-restaurant discovery, maps/ETA, automated delivery fees, online payment, driver dispatch and notifications remain outside this core build. Payments are at pickup/on delivery; delivery availability and fees are confirmed by phone. Overview aggregates use the latest 200 cloud orders and are not payment or accounting reports.
+
+
+## Admin management and handover
+
+Owner/admin roles, private access-change history and serialized transfer functions are applied with migration `202610200003_admin_handover.sql`. The transactional SQL suite passed and fixture users/roles/audit entries were verified rolled back. The intended owner Auth account is email-confirmed; granting the initial owner role is a separate explicit action.
+
+The **Admins** page adds existing users or generates a private one-time setup link for new users, removes access, and transfers ownership with typed-email confirmation and current-password reauthentication. Transfers require the replacement's confirmed email and first dashboard sign-in, promote exactly one owner and remove outgoing access atomically. No automated invitation email is sent; setup links are shared by the owner. Supabase's HTTPS Site URL and exact `/accept-invite` redirect are configured.
+
+All 15 tests and syntax/configuration checks pass. Isolated Chrome UI tests covered new-account setup-link display, removal confirmation, wrong-password rejection, handover sign-out and replacement-owner access. Regular admins have no access-management controls. The team page has no document horizontal overflow at 320, 390, 768 and 1536 pixels. Evidence: `tmp/admin-handover-validation/`. Real account setup-link consumption and live owner session testing still require the intended users to interact with their own credentials. See HANDOVER.md for the complete workflow and infrastructure handover scope.

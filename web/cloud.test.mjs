@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import {createCloudHandler} from './lib/cloud-handler.mjs';
 import {createSupabase} from './lib/supabase.mjs';
-import {defaultSettings,defaultContent,validateSettings,validateOrder} from './lib/validation.mjs';
+import {defaultSettings,defaultContent,validateSettings,validateOrder,HttpError} from './lib/validation.mjs';
 
 const env={RATE_LIMIT_SECRET:'x'.repeat(40),PUBLIC_ORIGIN:'https://nuvora.lidetdigital.com',VERCEL:'1',VERCEL_URL:'nuvora-test.vercel.app'};
 async function withServer(backend,run,options={}){
@@ -126,4 +126,87 @@ test('cloud storefront content persists uploaded images, preserves settings and 
   assert.equal(settings.contact_phone,'0911234567');assert.equal(settings.content.hero_title,content.hero_title);
   assert.equal(settings.content.logo_image,saved.body.content.logo_image);
  });
+});
+
+test('only owners manage access; actor identity is server-derived and removed sessions lose access',async()=>{
+ const members=new Map([['owner',{id:'owner-id',email:'owner@example.com',role:'owner'}],['staff',{id:'staff-id',email:'staff@example.com',role:'admin'}]]);
+ const actions=[];let invites=0;
+ const backend={isAdmin:async t=>members.has(t),getAdmin:async t=>members.get(t),request:async()=>[],
+  createSetupLink:async()=>{invites++;},rpc:async(name,args)=>{
+   if(name==='nuvora_rate_limit')return true;
+   if(name==='nuvora_list_admins')return [...members.values()];
+   actions.push(args);if(args.p_action==='inspect')return {exists:true,confirmed:true};
+   if(args.p_action==='remove')members.delete('staff');return {ok:true};
+  }};
+ const owner={Cookie:'nuvora_session=owner',Origin:env.PUBLIC_ORIGIN},staff={...owner,Cookie:'nuvora_session=staff'};
+ await withServer(backend,async call=>{
+  assert.equal((await call('/api/admin/team')).status,401);
+  assert.equal((await call('/api/admin/team','GET',undefined,staff)).status,403);
+  assert.equal((await call('/api/admin/team','POST',{action:'add',email:'x@example.com'},staff)).status,403);
+  assert.equal((await call('/api/admin/team','POST',{action:'remove',email:'staff@example.com'},{...owner,Origin:'https://evil.example'})).status,403);
+  assert.equal((await call('/api/admin/team','POST',{action:'remove',email:'owner@example.com'},owner)).status,400);
+  assert.equal((await call('/api/admin/team','POST',{action:'add',email:'bad'},owner)).status,400);
+  assert.equal((await call('/api/admin/team','POST',{action:'add',email:'New@Example.com',p_actor:'attacker'},owner)).status,200);
+  assert.deepEqual(actions.at(-1),{p_actor:'owner-id',p_action:'add',p_email:'new@example.com'});assert.equal(invites,0);
+  assert.equal((await call('/api/admin/team','POST',{action:'remove',email:'staff@example.com'},owner)).status,200);
+  assert.equal((await call('/api/admin/orders','GET',undefined,staff)).status,401);
+  assert.equal((await call('/api/admin/me','GET',undefined,owner)).body.role,'owner');
+ });
+});
+
+test('new admin setup link uses the fixed application origin and failed link creation never grants access',async()=>{
+ let fail=true,grants=0,observed;
+ const owner={id:'owner-id',email:'owner@example.com',role:'owner'};
+ const backend={isAdmin:async()=>true,getAdmin:async()=>owner,
+  createSetupLink:async(email,url)=>{observed={email,url};if(fail)throw new HttpError(503,'Link unavailable');return 'https://example.supabase.co/auth/v1/verify?token=fake';},
+  rpc:async(name,args)=>{if(name==='nuvora_rate_limit')return true;if(args.p_action==='inspect')return {exists:false,confirmed:false};grants++;return {ok:true};}};
+ await withServer(backend,async call=>{
+  const headers={Cookie:'nuvora_session=owner',Origin:env.PUBLIC_ORIGIN};
+  const payload={action:'add',email:'new@example.com',redirectTo:'https://evil.example'};
+  assert.equal((await call('/api/admin/team','POST',payload,headers)).status,503);assert.equal(grants,0);
+  fail=false;const r=await call('/api/admin/team','POST',payload,headers);
+  assert.equal(r.status,200);assert.match(r.body.setup_link,/https:\/\/example.supabase.co/);assert.equal(grants,1);
+  assert.deepEqual(observed,{email:'new@example.com',url:env.PUBLIC_ORIGIN+'/accept-invite'});
+ });
+});
+
+test('handover requires typed confirmation and password reauthentication, clears cookie and revokes outgoing access',async()=>{
+ let exists=true,verified=0,transfers=0;
+ const backend={isAdmin:async()=>exists,getAdmin:async()=>({id:'owner-id',email:'owner@example.com',role:'owner'}),
+  verifyPassword:async(id,email,password)=>{verified++;assert.equal(id,'owner-id');if(password!=='correct-password')throw new HttpError(401,'Incorrect password');},
+  rpc:async(name,args)=>{if(name==='nuvora_rate_limit')return true;assert.equal(args.p_action,'transfer');transfers++;exists=false;return {ok:true};}};
+ await withServer(backend,async call=>{
+  const headers={Cookie:'nuvora_session=owner',Origin:env.PUBLIC_ORIGIN};
+  const payload={action:'transfer',email:'new@example.com',confirmation:'new@example.com',password:'correct-password'};
+  assert.equal((await call('/api/admin/team','POST',{...payload,confirmation:'typo@example.com'},headers)).status,400);assert.equal(verified,0);
+  assert.equal((await call('/api/admin/team','POST',{...payload,password:'wrong'},headers)).status,401);assert.equal(transfers,0);
+  const r=await call('/api/admin/team','POST',payload,headers);assert.equal(r.status,200);assert.match(r.cookie,/Max-Age=0/);
+  assert.equal(transfers,1);assert.equal((await call('/api/admin/orders','GET',undefined,headers)).status,401);
+ });
+});
+
+test('invitation setup requires a currently allowed admin token and never accepts removed users',async()=>{
+ let active=false,updates=0,loginId;
+ const backend={getAdmin:async t=>active&&t==='valid-token'?{id:'invited-id',role:'admin'}:null,
+  rpc:async()=>true,markLogin:async id=>loginId=id,request:async(path,options)=>{updates++;assert.equal(path,'/auth/v1/user');assert.equal(options.accessToken,'valid-token');assert.equal(options.body.password,'long-new-password');}};
+ await withServer(backend,async call=>{
+  assert.equal((await call('/api/invitation/accept','POST',{token:'valid-token',password:'short'})).status,400);
+  assert.equal((await call('/api/invitation/accept','POST',{token:'valid-token',password:'long-new-password'})).status,403);assert.equal(updates,0);
+  active=true;const r=await call('/api/invitation/accept','POST',{token:'valid-token',password:'long-new-password'});
+  assert.equal(r.status,200);assert.match(r.cookie,/HttpOnly/);assert.match(r.cookie,/Secure/);assert.equal(updates,1);assert.equal(loginId,'invited-id');
+ });
+});
+
+test('Supabase access adapter preserves server-only invitation credentials and revokes temporary reauthentication sessions',async()=>{
+ const calls=[];let membership=true;
+ const db=createSupabase({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_test',SUPABASE_PUBLISHABLE_KEY:'sb_publishable_test'},async(url,options)=>{
+  calls.push({url,options});const data=url.includes('/admin_users?')?(membership?[{user_id:'owner-id',role:'owner'}]:[]):url.includes('/admin/generate_link?')?{action_link:'https://example.supabase.co/auth/v1/verify?token=fake'}:url.includes('/token?')?{access_token:'fresh-token',user:{id:'owner-id'}}:{id:'owner-id',email:'owner@example.com'};
+  return new Response(JSON.stringify(data),{status:200});
+ });
+ assert.equal((await db.getAdmin('token')).role,'owner');membership=false;assert.equal(await db.getAdmin('token'),null);
+ await db.createSetupLink('new@example.com','https://app.example/accept-invite');
+ const invite=calls.find(c=>c.url.includes('/admin/generate_link?'));assert.equal(invite.options.headers.apikey,'sb_secret_test');assert.match(invite.url,/redirect_to=https%3A%2F%2Fapp.example/);
+ await db.verifyPassword('owner-id','owner@example.com','password');assert.equal(calls.at(-1).options.headers.Authorization,'Bearer fresh-token');
+ await assert.rejects(db.verifyPassword('different-id','owner@example.com','password'),/Confirm your current owner password/);
+ assert.equal(calls.at(-1).url.endsWith('/logout?scope=local'),true);
 });
