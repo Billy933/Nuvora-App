@@ -93,3 +93,13 @@ test('Supabase adapter accepts Vercel integration aliases and keeps legacy servi
  assert.equal(observed.options.headers.Authorization,'Bearer user-jwt');
  assert.throws(()=>createSupabase({NEXT_PUBLIC_SUPABASE_URL:'https://example.supabase.co',NEXT_PUBLIC_SUPABASE_ANON_KEY:'anon'}),/not configured/);
 });
+
+test('Supabase adapter accepts the deployed NEXT_PUBLIC publishable key name',async()=>{
+ let headers;
+ const db=createSupabase({NEXT_PUBLIC_SUPABASE_URL:'https://example.supabase.co',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_test',SUPABASE_SECRET_KEY:'sb_secret_test'},async(url,options)=>{
+  headers=options.headers;return new Response(JSON.stringify({id:'test-user'}),{status:200});
+ });
+ await db.request('/auth/v1/user',{auth:true,accessToken:'user-token'});
+ assert.equal(headers.apikey,'sb_publishable_test');
+ assert.equal(headers.Authorization,'Bearer user-token');
+});

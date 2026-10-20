@@ -52,7 +52,11 @@ Create these **server-side** environment variables in Vercel Settings, not in so
 - `RATE_LIMIT_SECRET`: at least 32 random characters (generate locally, do not reuse a password)
 - `PUBLIC_ORIGIN`: `https://nuvora.lidetdigital.com`, once the domain is ready
 
-The server also accepts integration-style names: `NEXT_PUBLIC_SUPABASE_URL` for the URL, `SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the publishable/legacy anon key, and `SUPABASE_SERVICE_ROLE_KEY` for the server-only secret/legacy service-role key. Explicit SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / SUPABASE_SECRET_KEY values take precedence. Never put the service-role or secret key in a NEXT_PUBLIC variable. RATE_LIMIT_SECRET is a separate app secret and must also be configured.
+The server also accepts integration-style names: `NEXT_PUBLIC_SUPABASE_URL` for the URL; `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the publishable/legacy anon key; and `SUPABASE_SERVICE_ROLE_KEY` for the server-only secret/legacy service-role key. Explicit SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / SUPABASE_SECRET_KEY values take precedence. Never put the service-role or secret key in a NEXT_PUBLIC variable. RATE_LIMIT_SECRET is a separate app secret and must also be configured.
+
+Owner-provided deployment URL: https://nuvora-app-one.vercel.app/
+
+Until the custom subdomain is ready, set `PUBLIC_ORIGIN` to `https://nuvora-app-one.vercel.app` (without a trailing slash) to allow dashboard mutations from this stable Vercel alias. `VERCEL_URL` may identify a different deployment-specific hostname.
 
 For the initial deployment, leave PUBLIC_ORIGIN unset: the app permits the exact deployment origin from VERCEL_URL. After adding a production domain, set PUBLIC_ORIGIN and redeploy. Do not connect untrusted pull-request preview deployments to the restaurant's live database. For a test deployment, use a dedicated test Supabase project; switch to the intended production project deliberately.
 

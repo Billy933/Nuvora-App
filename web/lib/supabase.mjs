@@ -5,7 +5,7 @@ import { HttpError } from './validation.mjs';
 export function createSupabase(env = process.env, fetcher = fetch) {
   const url = (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
   const secret = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
-  const publishable = env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const publishable = env.SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url) || !secret || !publishable) {
     throw new HttpError(503, 'Supabase is not configured yet');
   }
