@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import {createCloudHandler} from './lib/cloud-handler.mjs';
 import {createSupabase} from './lib/supabase.mjs';
-import {defaultSettings,validateSettings,validateOrder} from './lib/validation.mjs';
+import {defaultSettings,defaultContent,validateSettings,validateOrder} from './lib/validation.mjs';
 
 const env={RATE_LIMIT_SECRET:'x'.repeat(40),PUBLIC_ORIGIN:'https://nuvora.lidetdigital.com',VERCEL:'1',VERCEL_URL:'nuvora-test.vercel.app'};
 async function withServer(backend,run,options={}){
@@ -102,4 +102,28 @@ test('Supabase adapter accepts the deployed NEXT_PUBLIC publishable key name',as
  await db.request('/auth/v1/user',{auth:true,accessToken:'user-token'});
  assert.equal(headers.apikey,'sb_publishable_test');
  assert.equal(headers.Authorization,'Bearer user-token');
+});
+
+
+test('cloud storefront content persists uploaded images, preserves settings and rejects unauthorized or invalid writes',async()=>{
+ let row={id:1,...defaultSettings,content:{}},uploads=0;
+ const backend={isAdmin:async token=>token==='owner',storeImage:async value=>{uploads++;return value.startsWith('data:')?'https://example.supabase.co/storage/v1/object/public/menu-photos/logo.png':value;},request:async(path,options)=>{
+  assert.match(path,/restaurant_settings/);
+  if(options?.method==='PATCH'){row={...row,...options.body};return null;}
+  return [row];
+ }};
+ const headers={Cookie:'nuvora_session=owner',Origin:env.PUBLIC_ORIGIN};
+ await withServer(backend,async call=>{
+  assert.deepEqual((await call('/api/settings')).body.content,defaultContent);
+  const content={...defaultContent,hero_title:'Fresh from the oven',logo_image:'data:image/png;base64,aGVsbG8='};
+  assert.equal((await call('/api/admin/content','PUT',content)).status,401);
+  assert.equal((await call('/api/admin/content','PUT',content,{...headers,Origin:'https://untrusted.example'})).status,403);
+  assert.equal((await call('/api/admin/content','PUT',{...content,hero_image:'javascript:alert(1)'},headers)).status,400);
+  const saved=await call('/api/admin/content','PUT',content,headers);
+  assert.equal(saved.status,200);assert.equal(uploads,1);assert.match(saved.body.content.logo_image,/https:\/\/example.supabase.co/);
+  await call('/api/admin/settings','PUT',{...defaultSettings,contact_phone:'0911234567'},headers);
+  const settings=(await call('/api/settings')).body;
+  assert.equal(settings.contact_phone,'0911234567');assert.equal(settings.content.hero_title,content.hero_title);
+  assert.equal(settings.content.logo_image,saved.body.content.logo_image);
+ });
 });

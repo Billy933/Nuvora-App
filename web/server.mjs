@@ -5,7 +5,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createCloudHandler } from './lib/cloud-handler.mjs';
-import { defaultSettings, validateSettings } from './lib/validation.mjs';
+import { defaultSettings, validateSettings, validateContent, withContent } from './lib/validation.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 mkdirSync(path.join(root,'data'), {recursive:true});
@@ -19,19 +19,20 @@ if (!cloud && !process.env.ADMIN_PASSWORD) console.log('LOCAL DEMO ONLY - tempor
 const sessions = new Map();
 const statuses = ['Received','Preparing','Ready for pickup','Out for delivery','Completed','Cancelled'];
 const send = (res,status,data) => {res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
-async function body(req) { let raw=''; for await (const chunk of req) {raw+=chunk;if(raw.length>3_000_000) throw Error('Request too large');} return JSON.parse(raw || '{}'); }
+async function body(req) { let raw=''; for await (const chunk of req) {raw+=chunk;if(raw.length>4_300_000) throw Error('Request too large');} return JSON.parse(raw || '{}'); }
 function validMenu(m) {return typeof m.name==='string' && m.name.trim().length>0 && m.name.length<=120 && typeof m.category==='string' && m.category.trim().length>0 && Number.isSafeInteger(m.price) && m.price>0 && m.price<=10000000 && typeof m.description==='string' && m.description.length<=1000 && typeof m.image==='string' && (m.image==='' || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(m.image));}
 export const server = http.createServer(async (req,res) => {
  try {
   const url=new URL(req.url,'http://localhost'); const route=url.pathname;
   if(cloud && route.startsWith('/api/')) return await cloud(req,res);
-  if(route==='/api/settings' && req.method==='GET') return send(res,200,JSON.parse(db.prepare('SELECT payload FROM restaurant_settings WHERE id=1').get().payload));
+  if(route==='/api/settings' && req.method==='GET') return send(res,200,withContent(JSON.parse(db.prepare('SELECT payload FROM restaurant_settings WHERE id=1').get().payload)));
   if (route==='/api/login' && req.method==='POST') { const p=String((await body(req)).password||''); const a=Buffer.from(p),b=Buffer.from(password);if(a.length!==b.length || !timingSafeEqual(a,b)) return send(res,401,{error:'Incorrect password'}); const token=randomBytes(32).toString('hex');sessions.set(token,Date.now()+8*60*60*1000);res.setHeader('Set-Cookie',`session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.COOKIE_SECURE==='true'?'; Secure':''}`);return send(res,200,{ok:true}); }
   const token=(req.headers.cookie||'').match(/(?:^|; )session=([a-f0-9]+)/)?.[1]; const admin=(sessions.get(token)||0)>Date.now();
   if(route.startsWith('/api/admin')) {
    if(!admin) return send(res,401,{error:'Sign in to continue'});
-   if(route==='/api/admin/settings' && req.method==='PUT') {const s=validateSettings(await body(req));db.prepare('UPDATE restaurant_settings SET payload=? WHERE id=1').run(JSON.stringify(s));return send(res,200,{ok:true});}
    if(req.method!=='GET' && req.headers.origin && req.headers.origin!==`${process.env.PUBLIC_ORIGIN || `http://${req.headers.host}`}`) return send(res,403,{error:'Invalid origin'});
+   if(route==='/api/admin/settings' && req.method==='PUT') {const s=validateSettings(await body(req));const existing=JSON.parse(db.prepare('SELECT payload FROM restaurant_settings WHERE id=1').get().payload);db.prepare('UPDATE restaurant_settings SET payload=? WHERE id=1').run(JSON.stringify({...existing,...s}));return send(res,200,{ok:true});}
+   if(route==='/api/admin/content' && req.method==='PUT') {const content=validateContent(await body(req));const existing=JSON.parse(db.prepare('SELECT payload FROM restaurant_settings WHERE id=1').get().payload);db.prepare('UPDATE restaurant_settings SET payload=? WHERE id=1').run(JSON.stringify({...existing,content}));return send(res,200,{ok:true,content});}
    if(route==='/api/admin/logout') {sessions.delete(token);res.setHeader('Set-Cookie','session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return send(res,200,{ok:true});}
    if(route==='/api/admin/orders' && req.method==='GET') return send(res,200,db.prepare('SELECT id,created,status,payload FROM orders ORDER BY created DESC').all().map(o=>({...o,...JSON.parse(o.payload),payload:undefined})));
    if(route.startsWith('/api/admin/orders/') && req.method==='PATCH') {const id=route.split('/').pop(), {status}=await body(req);const order=db.prepare('SELECT payload FROM orders WHERE id=?').get(id);if(!order)return send(res,404,{error:'Order not found'}); const mode=JSON.parse(order.payload).mode;if(!statuses.includes(status) || (mode==='pickup' && status==='Out for delivery') || (mode==='delivery' && status==='Ready for pickup'))return send(res,400,{error:'Invalid status'});db.prepare('UPDATE orders SET status=? WHERE id=?').run(status,id);return send(res,200,{ok:true});}
@@ -49,7 +50,7 @@ export const server = http.createServer(async (req,res) => {
   if(route.startsWith('/api/orders/') && req.method==='GET') {const o=db.prepare('SELECT id,status FROM orders WHERE id=? AND token=?').get(route.split('/').pop(),url.searchParams.get('token'));return send(res,o?200:404,o||{error:'Order not found'});}
   if(route.startsWith('/api/')) return send(res,404,{error:'Not found'});
   if(req.method!=='GET')return send(res,405,{error:'Method not allowed'});
-  const files={'/':'index.html','/admin':'admin.html','/app.js':'app.js','/admin.js':'admin.js','/settings.js':'settings.js','/style.css':'style.css'};const f=files[route];if(!f)return send(res,404,{error:'Not found'});res.writeHead(200,{'Content-Type':f.endsWith('.js')?'text/javascript; charset=utf-8':f.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin'});res.end(readFileSync(path.join(root,'public',f)));
+  const files={'/':'index.html','/admin':'admin.html','/admin.html':'admin.html','/app.js':'app.js','/admin.js':'admin.js','/settings.js':'settings.js','/ui.js':'ui.js','/style.css':'style.css','/layout.css':'layout.css','/assets/nuvora-logo.png':'assets/nuvora-logo.png'};const f=files[route];if(!f)return send(res,404,{error:'Not found'});res.writeHead(200,{'Content-Type':f.endsWith('.png')?'image/png':f.endsWith('.js')?'text/javascript; charset=utf-8':f.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin'});res.end(readFileSync(path.join(root,'public',f)));
  } catch(e) {send(res,400,{error:e.message || 'Unable to process request'});}
 });
 if(process.argv[1]===fileURLToPath(import.meta.url))server.listen(Number(process.env.PORT||3000),process.env.HOST||'127.0.0.1',()=>console.log(`Nuvora: http://${process.env.HOST||'127.0.0.1'}:${process.env.PORT||3000}`));

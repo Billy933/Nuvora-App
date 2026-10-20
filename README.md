@@ -46,7 +46,10 @@ Configure Android release signing before distribution. The release task rejects 
 - Add the actual menu, prices and photos. Restaurant contact, hours, order availability, coverage and rates can be edited in the dashboard. Confirm the provisional nearby cutoff before publishing rates.
 - Current delivery orders request an address and landmark. The checkout explicitly says the owner will call to confirm delivery availability and its fee before preparation. The total covers food only.
 - Payment is at pickup or on delivery. There is no payment processing, map pin, push/SMS notification, scheduling, driver dispatch, or automated delivery fee calculation yet.
-- Order status refreshes every 15 seconds while the customer page is open; admin orders refresh every 20 seconds. Order tracking is remembered in that browser/device only. Menu changes show on refresh.
+- Customer menu, storefront content and order status refresh every 20 seconds while the page is visible; admin orders refresh every 20 seconds. Order tracking and favorites are remembered in that browser/device only.
+- The dashboard Storefront page edits the restaurant name, logo, banner image, headings and about text. Apply the additive storefront-content migration before using it in the cloud. Desktop, tablet and mobile layouts are included for the storefront and dashboard.
 - Cloud login and checkout have persistent request limits. Configure monitoring, backups and a privacy/retention policy before launch.
 
 Local API tests cover menu CRUD, authoritative totals, sold-out checks, checkout validation, tracking privacy and fulfillment updates. Cloud tests use mocked Supabase responses to check authentication, secure cookies, origin checks, rate limits, token hashing, settings validation and photo uploads. Transactional SQL checks are supplied separately and must run against Supabase after applying the migration. Neither mocked tests nor syntax checks prove live deployment, browser behavior or Android compatibility.
+
+Latest local build evidence and remaining release steps: [BUILD_STATUS.md](BUILD_STATUS.md).

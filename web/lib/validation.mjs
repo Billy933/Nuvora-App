@@ -4,6 +4,36 @@ export const defaultSettings = Object.freeze({
   delivery_max_km: 50, nearby_limit_km: 15, nearby_rate: 500, far_rate: 1000,
   delivery_pricing_confirmed: false
 });
+export const defaultContent = Object.freeze({
+  restaurant_name: 'Nuvora', tagline: 'Takeaway & delivery',
+  hero_eyebrow: 'FRESH FROM OUR KITCHEN', hero_title: 'Good food. Great mood.',
+  hero_description: 'Your favorites, freshly prepared. Pick them up or have them delivered to your door.',
+  hero_image: '', logo_image: '/assets/nuvora-logo.png',
+  menu_heading: 'Find your next favorite', about_title: 'Made with care, served with love.',
+  about_description: 'Welcome to Nuvora. Order for pickup or delivery from our kitchen in Addis Ababa.',
+  empty_title: 'Something delicious is on its way.', empty_description: 'Our kitchen is getting the menu ready. Come back soon.',
+  footer_text: 'A little flavor. A lot of happiness.'
+});
+export function withContent(s) { return {...defaultSettings,...s,content:{...defaultContent,...s?.content}}; }
+export function validateContent(c) {
+  if(!c || typeof c!=='object' || Array.isArray(c))throw new HttpError(400,'Invalid storefront content');
+  const limits={restaurant_name:60,tagline:80,hero_eyebrow:70,hero_title:100,hero_description:400,menu_heading:100,
+    about_title:100,about_description:1200,empty_title:100,empty_description:400,footer_text:150};
+  const result={};
+  for(const [key,max] of Object.entries(limits)) {
+    if(typeof c[key]!=='string' || !c[key].trim() || c[key].length>max)throw new HttpError(400,`Check ${key.replaceAll('_',' ')} (maximum ${max} characters)`);
+    result[key]=c[key].trim();
+  }
+  for(const key of ['hero_image','logo_image']) {
+    const value=c[key];
+    if(typeof value!=='string' || value.length>2100000 || (value && value!=='/assets/nuvora-logo.png' &&
+      !/^https:\/\/[^\s"<>]+$/.test(value) && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value))) {
+      throw new HttpError(400,'Choose a JPEG, PNG, or WebP image');
+    }
+    result[key]=value;
+  }
+  return result;
+}
 export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }

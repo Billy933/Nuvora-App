@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { createSupabase } from './supabase.mjs';
-import { HttpError, validateMenu, validateOrder, validateSettings } from './validation.mjs';
+import { HttpError, validateMenu, validateOrder, validateSettings, validateContent, withContent } from './validation.mjs';
 
 const statuses=['Received','Preparing','Ready for pickup','Out for delivery','Completed','Cancelled'];
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
@@ -8,11 +8,11 @@ async function readBody(req) {
   if (!String(req.headers['content-type'] || '').startsWith('application/json')) throw new HttpError(415,'Send JSON data');
   if (req.body !== undefined) {
     const text=typeof req.body==='string'?req.body:JSON.stringify(req.body);
-    if(Buffer.byteLength(text)>2200000) throw new HttpError(413,'Request too large');
+    if(Buffer.byteLength(text)>4300000) throw new HttpError(413,'Request too large');
     try{return JSON.parse(text);}catch{throw new HttpError(400,'Invalid JSON');}
   }
   let size=0; const chunks=[];
-  for await(const chunk of req) {size+=chunk.length;if(size>2200000)throw new HttpError(413,'Request too large');chunks.push(chunk);}
+  for await(const chunk of req) {size+=chunk.length;if(size>4300000)throw new HttpError(413,'Request too large');chunks.push(chunk);}
   try{return JSON.parse(Buffer.concat(chunks).toString());}catch{throw new HttpError(400,'Invalid JSON');}
 }
 export function createCloudHandler({env=process.env,backend}={}) {
@@ -54,6 +54,14 @@ export function createCloudHandler({env=process.env,backend}={}) {
       }
       if(route.startsWith('/api/admin/')) {
         if(!await db.isAdmin(access))throw new HttpError(401,'Sign in to continue');
+        if(route==='/api/admin/content' && req.method==='PUT') {
+          const content=validateContent(await readBody(req));
+          for(const key of ['hero_image','logo_image']) {
+            if(content[key] && content[key]!=='/assets/nuvora-logo.png')content[key]=await db.storeImage(content[key]);
+          }
+          await db.request('/rest/v1/restaurant_settings?id=eq.1',{method:'PATCH',body:{content}});
+          return send(res,200,{ok:true,content});
+        }
         if(route==='/api/admin/orders' && req.method==='GET') {
           const rows=await db.request('/rest/v1/orders?select=id,created,status,payload&order=created.desc&limit=200');
           return send(res,200,rows.map(o=>({id:o.id,created:o.created,status:o.status,...o.payload})));
@@ -92,7 +100,7 @@ export function createCloudHandler({env=process.env,backend}={}) {
         const [s]=await db.request('/rest/v1/restaurant_settings?id=eq.1&select=*');
         if(!s)throw new HttpError(503,'Restaurant settings are not configured');
         const {id,...settings}=s;
-        return send(res,200,settings);
+        return send(res,200,withContent(settings));
       }
       if(route==='/api/orders' && req.method==='POST') {
         await limit('order',10,600);

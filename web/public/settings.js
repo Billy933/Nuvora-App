@@ -1,58 +1,25 @@
-const money=n=>`ETB ${(n/100).toFixed(2)}`;
-async function settingsRequest(method='GET',data) {
-  const r=await fetch(method==='GET'?'/api/settings':'/api/admin/settings',{method,headers:{'Content-Type':'application/json'},...(data?{body:JSON.stringify(data)}:{})});
-  const d=await r.json();if(!r.ok)throw Error(d.error);return d;
+import {$,escape,icon,hydrateIcons,applyBrand,api,readPhoto} from './ui.js';
+const limits={restaurant_name:60,tagline:80,hero_eyebrow:70,hero_title:100,hero_description:400,menu_heading:100,about_title:100,about_description:1200,empty_title:100,empty_description:400,footer_text:150};
+const labelNames={restaurant_name:'Restaurant name',tagline:'Tagline',hero_eyebrow:'Banner label',hero_title:'Banner headline',hero_description:'Banner description',menu_heading:'Menu heading',about_title:'About page headline',about_description:'About your restaurant',empty_title:'Empty menu headline',empty_description:'Empty menu message',footer_text:'Footer message'};
+export async function mountAdminSettings(){
+ const root=$('#settings-editor');
+ root.innerHTML=`<form id="restaurant-settings" class="settings-form"><section class="panel"><div class="section-heading"><div><h2>Restaurant details</h2><p class="small">Help your customers find you.</p></div>${icon('pin')}</div><div class="form-grid"><label>Pickup address<input name="pickup_address" required maxlength="300"></label><label>Restaurant phone<input name="contact_phone" type="tel" required pattern="(0|\\+251)[79][0-9]{8}"></label></div></section><section class="panel"><div class="section-heading"><div><h2>Opening hours</h2><p class="small">Addis Ababa clock time. 07:00–23:00 means Ethiopian morning 1 to night 5.</p></div>${icon('clock')}</div><div class="form-grid"><label>Opens at<input name="opening_time" type="time" required></label><label>Closes at<input name="closing_time" type="time" required></label></div><label class="switch-label"><input name="accepting_orders" type="checkbox"><span><strong>Accept customer orders</strong><small>Switch off to pause the kitchen. Orders are accepted only during opening hours.</small></span></label></section><section class="panel"><div class="section-heading"><div><h2>Delivery preferences</h2><p class="small">Control how far you go and your delivery rates.</p></div>${icon('truck')}</div><div class="form-grid"><label>Maximum delivery distance (km)<input name="delivery_max_km" type="number" min="0.1" max="100" step="0.1" required></label><label>Nearby distance limit (km)<input name="nearby_limit_km" type="number" min="0.1" max="100" step="0.1" required></label><label>Nearby rate (ETB/km)<input name="nearby_rate" type="number" min="0" max="1000" step="0.01" required></label><label>Long-distance rate (ETB/km)<input name="far_rate" type="number" min="0" max="1000" step="0.01" required></label></div><label class="switch-label"><input name="delivery_pricing_confirmed" type="checkbox"><span><strong>Show confirmed rates to customers</strong><small>Confirm the nearby boundary and rates before enabling this.</small></span></label><p class="info-note">Delivery distance and the final fee still need confirmation by phone. The app does not automatically calculate a delivery route.</p></section><div class="save-bar"><p id="settings-message" role="status"></p><button class="button">Save settings ${icon('check')}</button></div></form>`;
+ const form=$('form',root),msg=$('#settings-message');
+ async function load(){const s=await api('/api/settings');for(const [key,value] of Object.entries(s)){const input=form.elements.namedItem(key);if(!input)continue;if(input.type==='checkbox')input.checked=value;else input.value=['nearby_rate','far_rate'].includes(key)?(value/100).toFixed(2):value;}}
+ form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('button');button.disabled=true;try{const data=Object.fromEntries(new FormData(form));for(const k of ['nearby_rate','far_rate'])data[k]=Math.round(Number(data[k])*100);for(const k of ['delivery_max_km','nearby_limit_km'])data[k]=Number(data[k]);for(const k of ['accepting_orders','delivery_pricing_confirmed'])data[k]=form.elements.namedItem(k).checked;await api('/api/admin/settings','PUT',data);msg.textContent='Restaurant settings saved.';}catch(e){msg.textContent=e.message;}finally{button.disabled=false;}};
+ try{await load();}catch(e){msg.textContent=e.message;}return {load};
 }
-export async function mountAdminSettings() {
-  const panel=document.createElement('section');panel.className='settings-panel';
-  panel.innerHTML=`<h2>Restaurant settings</h2><p class="small">Times are Addis Ababa clock time (24-hour): 07:00 to 23:00 means Ethiopian morning 1 to night 5.</p>
-  <form id="restaurant-settings"><div class="settings-grid">
-  <label>Pickup address<input name="pickup_address" required maxlength="300"></label>
-  <label>Restaurant phone<input name="contact_phone" type="tel" required pattern="(0|\\+251)[79][0-9]{8}"></label>
-  <label>Opens at<input name="opening_time" type="time" required></label>
-  <label>Closes at<input name="closing_time" type="time" required></label>
-  <label>Maximum delivery distance (km)<input name="delivery_max_km" type="number" min="0.1" max="100" step="0.1" required></label>
-  <label>Nearby limit (km; provisional until confirmed)<input name="nearby_limit_km" type="number" min="0.1" max="100" step="0.1" required></label>
-  <label>Nearby rate (ETB/km)<input name="nearby_rate" type="number" min="0" max="1000" step="0.01" required></label>
-  <label>Long-distance rate (ETB/km)<input name="far_rate" type="number" min="0" max="1000" step="0.01" required></label>
-  </div><label class="check"><input name="accepting_orders" type="checkbox"> Accept orders during opening hours</label>
-  <label class="check"><input name="delivery_pricing_confirmed" type="checkbox"> Rates and nearby boundary are confirmed</label>
-  <p class="small">Fees still require a phone confirmation before preparation. No distance or delivery fee is calculated automatically.</p>
-  <button class="button">Save restaurant settings</button><p id="settings-message" role="status"></p></form>`;
-  document.querySelector('#dashboard').append(panel);
-  const form=panel.querySelector('form'),msg=panel.querySelector('#settings-message');
-  try {
-    const s=await settingsRequest();
-    for(const [key,value] of Object.entries(s)) {
-      const input=form.elements.namedItem(key);if(!input)continue;
-      if(input.type==='checkbox')input.checked=value;
-      else input.value=['nearby_rate','far_rate'].includes(key)?(value/100).toFixed(2):value;
-    }
-  }catch(e){msg.textContent=e.message;}
-  form.onsubmit=async e=>{
-    e.preventDefault();const button=form.querySelector('button');button.disabled=true;
-    try {
-      const data=Object.fromEntries(new FormData(form));
-      for(const k of ['nearby_rate','far_rate'])data[k]=Math.round(Number(data[k])*100);
-      for(const k of ['delivery_max_km','nearby_limit_km'])data[k]=Number(data[k]);
-      for(const k of ['accepting_orders','delivery_pricing_confirmed'])data[k]=form.elements.namedItem(k).checked;
-      await settingsRequest('PUT',data);msg.textContent='Restaurant settings saved.';
-    }catch(e){msg.textContent=e.message;}finally{button.disabled=false;}
-  };
-}
-export async function mountStoreSettings() {
-  const container=document.createElement('section');container.className='store-details';
-  document.querySelector('.hero').after(container);
-  try {
-    const s=await settingsRequest();
-    const fields=[['PICKUP',s.pickup_address],['HOURS',`${s.opening_time}–${s.closing_time} · Addis Ababa time`],['CONTACT',s.contact_phone]];
-    for(const [label,value] of fields) {
-      const block=document.createElement('div'),heading=document.createElement('p'),text=document.createElement('p');
-      heading.className='eyebrow';heading.textContent=label;text.textContent=value;block.append(heading,text);container.append(block);
-    }
-    const info=document.createElement('p');info.className='small';
-    info.textContent=`Delivery up to ${s.delivery_max_km} km from Bole. ${s.delivery_pricing_confirmed ? `Rates: ${money(s.nearby_rate)}/km nearby (up to ${s.nearby_limit_km} km); ${money(s.far_rate)}/km for longer trips. ` : ''}The restaurant will call to confirm your location, distance and delivery fee before preparation.`;
-    container.append(info);
-    if(!s.accepting_orders){const closed=document.createElement('p');closed.className='closed-notice';closed.textContent='The kitchen is currently paused for new orders.';container.prepend(closed);}
-  }catch {container.textContent='Restaurant details are temporarily unavailable.';}
+export async function mountContentEditor(){
+ const root=$('#content-editor');let content={},busy=false;const pending=new Set();
+ const field=(key)=>`<label>${labelNames[key]}${['hero_description','about_description','empty_description'].includes(key)?`<textarea name="${key}" maxlength="${limits[key]}" rows="3" required></textarea>`:`<input name="${key}" maxlength="${limits[key]}" required>`}</label>`;
+ const imageField=(key,title)=>`<div><h3>${title}</h3><label class="upload-zone content-upload" for="${key}-file"><img id="${key}-preview" alt="${title} preview" hidden><span id="${key}-placeholder">${icon('image')}<strong>Choose an image</strong><small>JPEG, PNG or WebP · Max 1.5 MB</small></span><input id="${key}-file" type="file" accept="image/jpeg,image/png,image/webp" data-content-image="${key}"></label><button class="text-button" type="button" data-clear-image="${key}">Remove image</button></div>`;
+ root.innerHTML=`<form id="content-form"><div class="content-layout"><div class="content-fields"><section class="panel"><h2>Your brand</h2><div class="form-grid">${field('restaurant_name')}${field('tagline')}</div>${imageField('logo_image','Restaurant logo')}</section><section class="panel"><h2>Home banner</h2><p class="small">A warm welcome, a new dish, or today's special. Keep the message accurate and current.</p>${field('hero_eyebrow')}${field('hero_title')}${field('hero_description')}${imageField('hero_image','Banner photo')}</section><section class="panel"><h2>Menu & about page</h2>${field('menu_heading')}${field('about_title')}${field('about_description')}</section><section class="panel"><h2>The little details</h2>${field('empty_title')}${field('empty_description')}${field('footer_text')}</section></div><aside class="panel content-live-preview"><p class="eyebrow">BANNER PREVIEW</p><div class="mini-hero"><img id="content-preview-image" alt="Banner preview"><p id="content-preview-label"></p><h2 id="content-preview-title"></h2><p id="content-preview-description"></p><span class="button button-dark">Explore the menu ${icon('arrow')}</span></div><p class="small">This previews your banner content. Save to update the customer app.</p></aside></div><div class="save-bar"><p id="content-message" role="status"></p><button class="button" id="save-content">Save storefront ${icon('check')}</button></div></form>`;
+ const form=$('#content-form'),msg=$('#content-message');
+ function preview(){for(const [key,id] of [['hero_eyebrow','label'],['hero_title','title'],['hero_description','description']])$('#content-preview-'+id).textContent=form.elements.namedItem(key).value;$('#content-preview-image').src=content.hero_image||content.logo_image||'/assets/nuvora-logo.png';for(const key of ['hero_image','logo_image']){const img=$('#'+key+'-preview');img.hidden=!content[key];if(content[key])img.src=content[key];$('#'+key+'-placeholder').hidden=!!content[key];}}
+ async function load(){const s=await api('/api/settings');content=s.content;applyBrand(content);for(const key of Object.keys(limits))form.elements.namedItem(key).value=content[key]||'';preview();}
+ form.addEventListener('input',preview);
+ form.addEventListener('change',async e=>{const key=e.target.dataset.contentImage;if(!key)return;pending.add(key);$('#save-content').disabled=true;try{content[key]=await readPhoto(e.target.files[0]);preview();msg.textContent='Image ready. Save storefront to publish your changes.';}catch(e){msg.textContent=e.message;}finally{pending.delete(key);$('#save-content').disabled=busy||pending.size>0;e.target.value='';}});
+ form.addEventListener('click',e=>{const b=e.target.closest('[data-clear-image]');if(!b)return;content[b.dataset.clearImage]='';preview();});
+ form.onsubmit=async e=>{e.preventDefault();if(busy||pending.size)return;busy=true;$('#save-content').disabled=true;try{const payload={...Object.fromEntries(new FormData(form)),hero_image:content.hero_image||'',logo_image:content.logo_image||''};const result=await api('/api/admin/content','PUT',payload);content=result.content;applyBrand(content);preview();msg.textContent='Storefront saved. Your customer app will pick up the changes automatically.';}catch(e){msg.textContent=e.message;}finally{busy=false;$('#save-content').disabled=false;}};
+ try{await load();}catch(e){msg.textContent=e.message;}return {load};
 }

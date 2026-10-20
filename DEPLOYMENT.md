@@ -14,6 +14,7 @@ The owner has created the Vercel project and configured Supabase environment var
 
 1. Inspect the target project first to confirm it is dedicated to Nuvora and does not already contain conflicting `menu`, `orders`, or other tables from this migration.
 2. Apply [the migration](supabase/migrations/202610200001_nuvora.sql). It creates menu, orders, settings, admin allowlist, persistent rate limiting and a `menu-photos` Storage bucket. Apply once; do not rerun the same migration over an existing schema.
+   Then apply [the additive storefront-content migration](supabase/migrations/202610200002_storefront_content.sql). It adds the JSON content column used by the dashboard Storefront editor and preserves existing menu items and orders. Existing installations need only this second migration if the first is already applied.
 3. Run [the transactional SQL checks](supabase/tests/checkout.sql). Their test data rolls back.
 4. Create the owner's email/password account in Supabase Authentication. Disable public signups for this owner-only dashboard. The app itself has no registration endpoint.
 5. Grant just that account admin access (replace the placeholder with the confirmed owner's email):
@@ -71,6 +72,7 @@ Add `nuvora.lidetdigital.com` to the Vercel project. In the authoritative DNS zo
 - Storefront and `/admin` load over HTTPS. `/api/menu` and `/api/settings` return successfully.
 - Unauthenticated `/api/admin/orders` returns 401; signing in as a non-owner cannot access orders or menu writes.
 - Owner can create, edit, sell out and delete a test dish, including a photo.
+- Owner can save storefront text, upload a logo/banner photo, and see those changes on the customer page. Confirm settings edits preserve storefront content and content edits preserve restaurant settings.
 - Confirm restaurant details and rates in the settings. Fresh cloud installs are **paused for orders** by default. Enable orders only for a supervised test, then pause again until ready.
 - During opening hours, submit pickup and delivery test orders, verify the dashboard sees them, update status, and verify customer tracking. Check authoritative totals and delivery-fee disclosure.
 - Confirm the database persists across Vercel redeployments.
