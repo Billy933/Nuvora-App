@@ -44,7 +44,8 @@ test('menu authorization, CRUD, server pricing, checkout validation, order priva
   assert.equal((await call('/api/admin/menu/'+id,'DELETE')).status,200);
   const orders=await call('/api/admin/orders');assert.equal(orders.data[0].items[0].name,'Test dish');assert.equal(orders.data[0].status,'Preparing');
   assert.equal((await call('/api/menu')).data.length,0);
-  for(const route of ['/','/admin','/app.js','/admin.js','/style.css','/layout.css','/settings.js','/ui.js','/assets/nuvora-logo.png','/menu-items/classic-burger.jpg','/team.js','/accept-invite','/accept-invite.js'])assert.equal((await fetch(base+route)).status,200);
+  for(const route of ['/','/admin','/app.js','/admin.js','/style.css','/layout.css','/settings.js','/ui.js','/assets/nuvora-logo.png','/assets/nuvora-hero.jpg','/menu-items/classic-burger.jpg','/team.js','/accept-invite','/accept-invite.js'])assert.equal((await fetch(base+route)).status,200);
+  assert.match((await fetch(base+'/assets/nuvora-hero.jpg')).headers.get('content-type'),/image\/jpeg/);
   assert.match((await fetch(base+'/menu-items/classic-burger.jpg')).headers.get('content-type'),/image\/jpeg/);
  }finally{await new Promise(r=>server.close(r));}
 });

@@ -49,6 +49,7 @@ export function createSupabase(env = process.env, fetcher = fetch) {
     if (!image) return '';
     // Bundled menu photos live with the storefront and are also editable in the admin UI.
     if (/^\/menu-items\/[a-z0-9-]+\.jpg$/.test(image)) return image;
+    if (image === '/assets/nuvora-hero.jpg' || image === '/assets/nuvora-logo.png') return image;
     if (image.startsWith(`${url}/storage/v1/object/public/menu-photos/`) &&
         /^https:\/\/[^\s"<>]+$/.test(image)) return image;
     const match=image.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);

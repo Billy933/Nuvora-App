@@ -26,7 +26,7 @@ export function validateContent(c) {
   }
   for(const key of ['hero_image','logo_image']) {
     const value=c[key];
-    if(typeof value!=='string' || value.length>2100000 || (value && value!=='/assets/nuvora-logo.png' &&
+    if(typeof value!=='string' || value.length>2100000 || (value && !['/assets/nuvora-logo.png','/assets/nuvora-hero.jpg'].includes(value) &&
       !/^https:\/\/[^\s"<>]+$/.test(value) && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value))) {
       throw new HttpError(400,'Choose a JPEG, PNG, or WebP image');
     }

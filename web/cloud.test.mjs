@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import {createCloudHandler} from './lib/cloud-handler.mjs';
 import {createSupabase} from './lib/supabase.mjs';
-import {defaultSettings,defaultContent,validateSettings,validateOrder,HttpError} from './lib/validation.mjs';
+import {defaultSettings,defaultContent,validateSettings,validateContent,validateOrder,HttpError} from './lib/validation.mjs';
 
 const env={RATE_LIMIT_SECRET:'x'.repeat(40),PUBLIC_ORIGIN:'https://nuvora.lidetdigital.com',VERCEL:'1',VERCEL_URL:'nuvora-test.vercel.app'};
 async function withServer(backend,run,options={}){
@@ -56,6 +56,8 @@ test('tracking never returns private fields; Vercel rewrites resolve the origina
 });
 test('settings validation accepts the corrected ETB 5/10 rates, rejects invalid hours and boundaries',()=>{
  assert.equal(validateSettings({...defaultSettings}).nearby_rate,500);
+ assert.equal(validateContent({...defaultContent,hero_image:'/assets/nuvora-hero.jpg'}).hero_image,'/assets/nuvora-hero.jpg');
+ assert.throws(()=>validateContent({...defaultContent,hero_image:'/assets/other.jpg'}));
  assert.throws(()=>validateSettings({...defaultSettings,nearby_limit_km:60}));
  assert.throws(()=>validateSettings({...defaultSettings,opening_time:'25:00'}));
  assert.throws(()=>validateSettings({...defaultSettings,far_rate:1}));
@@ -117,12 +119,12 @@ test('cloud storefront content persists uploaded images, preserves settings and 
  const headers={Cookie:'nuvora_session=owner',Origin:env.PUBLIC_ORIGIN};
  await withServer(backend,async call=>{
   assert.deepEqual((await call('/api/settings')).body.content,defaultContent);
-  const content={...defaultContent,hero_title:'Fresh from the oven',logo_image:'data:image/png;base64,aGVsbG8='};
+  const content={...defaultContent,hero_title:'Fresh from the oven',hero_image:'/assets/nuvora-hero.jpg',logo_image:'data:image/png;base64,aGVsbG8='};
   assert.equal((await call('/api/admin/content','PUT',content)).status,401);
   assert.equal((await call('/api/admin/content','PUT',content,{...headers,Origin:'https://untrusted.example'})).status,403);
   assert.equal((await call('/api/admin/content','PUT',{...content,hero_image:'javascript:alert(1)'},headers)).status,400);
   const saved=await call('/api/admin/content','PUT',content,headers);
-  assert.equal(saved.status,200);assert.equal(uploads,1);assert.match(saved.body.content.logo_image,/https:\/\/example.supabase.co/);
+  assert.equal(saved.status,200);assert.equal(uploads,2);assert.match(saved.body.content.logo_image,/https:\/\/example.supabase.co/);assert.equal(saved.body.content.hero_image,'/assets/nuvora-hero.jpg');
   await call('/api/admin/settings','PUT',{...defaultSettings,contact_phone:'0911234567'},headers);
   const settings=(await call('/api/settings')).body;
   assert.equal(settings.contact_phone,'0911234567');assert.equal(settings.content.hero_title,content.hero_title);
