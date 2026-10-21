@@ -75,6 +75,8 @@ test('Supabase adapter verifies users, rejects non-admins, preserves server-only
  admin=true;assert.equal((await db.login('owner@example.com','pw')).access_token,'jwt');
  const auth=calls.find(c=>c.url.endsWith('/auth/v1/user'));assert.equal(auth.options.headers.apikey,remote.SUPABASE_PUBLISHABLE_KEY);assert.equal(auth.options.headers.Authorization,'Bearer jwt');
  const photo=await db.storeImage('data:image/png;base64,aGVsbG8=');assert.match(photo,/storage\/v1\/object\/public\/menu-photos\//);
+ assert.equal(await db.storeImage('/menu-items/classic-burger.jpg'),'/menu-items/classic-burger.jpg');
+ await assert.rejects(db.storeImage('/menu-items/../admin.js'),/Choose a JPEG/);
  const upload=calls.find(c=>c.url.includes('/object/menu-photos/'));assert.equal(upload.options.headers.apikey,remote.SUPABASE_SECRET_KEY);
  await assert.rejects(db.storeImage('https://evil.example/photo.png'),/Choose a JPEG/);
 });

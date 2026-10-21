@@ -27,7 +27,7 @@ test('menu authorization, CRUD, server pricing, checkout validation, order priva
   assert.equal(settings.pickup_address,'Bole, Selam City Mall');assert.equal(settings.nearby_rate,500);assert.equal(settings.far_rate,1000);
   assert.equal((await call('/api/admin/settings','PUT',{...settings,nearby_limit_km:60})).status,400);
   assert.equal((await call('/api/admin/settings','PUT',{...settings,accepting_orders:false})).status,200);
-  const item={name:'Test dish',category:'Mains',description:'Test only',price:25000,image:'',available:true};
+  const item={name:'Test dish',category:'Mains',description:'Test only',price:25000,image:'/menu-items/classic-burger.jpg',available:true};
   const added=await call('/api/admin/menu','POST',item);assert.equal(added.status,201);const id=added.data.id;
   const order={name:'Test Customer',phone:'0911234567',mode:'pickup',items:[{id,quantity:2,price:1}],total:2};
   assert.equal((await call('/api/orders','POST',order)).status,400);
@@ -44,6 +44,7 @@ test('menu authorization, CRUD, server pricing, checkout validation, order priva
   assert.equal((await call('/api/admin/menu/'+id,'DELETE')).status,200);
   const orders=await call('/api/admin/orders');assert.equal(orders.data[0].items[0].name,'Test dish');assert.equal(orders.data[0].status,'Preparing');
   assert.equal((await call('/api/menu')).data.length,0);
-  for(const route of ['/','/admin','/app.js','/admin.js','/style.css','/layout.css','/settings.js','/ui.js','/assets/nuvora-logo.png','/team.js','/accept-invite','/accept-invite.js'])assert.equal((await fetch(base+route)).status,200);
+  for(const route of ['/','/admin','/app.js','/admin.js','/style.css','/layout.css','/settings.js','/ui.js','/assets/nuvora-logo.png','/menu-items/classic-burger.jpg','/team.js','/accept-invite','/accept-invite.js'])assert.equal((await fetch(base+route)).status,200);
+  assert.match((await fetch(base+'/menu-items/classic-burger.jpg')).headers.get('content-type'),/image\/jpeg/);
  }finally{await new Promise(r=>server.close(r));}
 });
