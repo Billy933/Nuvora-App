@@ -30,19 +30,21 @@ test('cloud login requires admin membership, sets secure HttpOnly cookie, reject
  });
 });
 test('cloud checkout delegates pricing to a database transaction, strips client totals and hashes tracking tokens',async()=>{
- let args;
- const backend={rpc:async(name,p)=>{if(name==='nuvora_rate_limit')return true;args=p;return {id:p.p_id,status:'Received',total:50000};}};
+ let args,rateCalls=0,rateArgs;
+ const backend={rpc:async(name,p)=>{if(name==='nuvora_rate_limit'){rateCalls++;rateArgs=p;return true;}args=p;return {id:p.p_id,status:'Received',total:50000};}};
  await withServer(backend,async call=>{
   const placed=await call('/api/orders','POST',{name:'Customer',phone:'0911234567',mode:'pickup',items:[{id:1,quantity:2,price:1}],total:2});
   assert.equal(placed.status,201);assert.equal(placed.body.total,50000);assert.equal(placed.body.token.length,48);
+  assert.equal(rateCalls,1);assert.deepEqual([rateArgs.p_max,rateArgs.p_seconds],[30,600]);
   assert.equal(args.p_token_hash.length,64);assert.notEqual(args.p_token_hash,placed.body.token);
   assert.equal(args.p_order.total,undefined);assert.equal(args.p_order.items[0].price,undefined);
   assert.equal((await call('/api/orders','POST',{name:'X',phone:'123',items:[]})).status,400);
+  assert.equal(rateCalls,1,'invalid checkout input should not consume an order attempt');
  });
 });
 test('rate limits are persistent backend calls and fail closed without a configured secret',async()=>{
  await withServer({rpc:async()=>false},async call=>assert.equal((await call('/api/login','POST',{})).status,429));
- await withServer({rpc:async()=>true},async call=>assert.equal((await call('/api/orders','POST',{})).status,503),{RATE_LIMIT_SECRET:''});
+ await withServer({rpc:async()=>true},async call=>assert.equal((await call('/api/orders','POST',{name:'Customer',phone:'0911234567',mode:'pickup',items:[{id:1,quantity:1}]})).status,503),{RATE_LIMIT_SECRET:''});
 });
 test('tracking never returns private fields; Vercel rewrites resolve the original API route',async()=>{
  let query;

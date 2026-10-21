@@ -179,8 +179,10 @@ export function createCloudHandler({env=process.env,backend,pushSender=sendPush}
         return send(res,200,withContent(settings));
       }
       if(route==='/api/orders' && req.method==='POST') {
-        await limit('order',10,600);
         const o=validateOrder(await readBody(req));
+        // Invalid checkout retries should not consume the customer's order allowance.
+        // Shared mobile/carrier IPs also need room for normal restaurant traffic.
+        await limit('order',30,600);
         const id=randomBytes(6).toString('hex').toUpperCase(), token=randomBytes(24).toString('hex');
         const result=await db.rpc('nuvora_place_order',{p_id:id,p_token_hash:createHash('sha256').update(token).digest('hex'),p_order:o});
         // The transaction has saved a durable delivery record. A failed send must never make checkout fail.
