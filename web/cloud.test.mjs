@@ -28,6 +28,10 @@ test('cloud login requires admin membership, sets secure HttpOnly cookie, reject
   assert.equal((await call('/api/login','POST',null)).status,400);
   assert.equal((await call('/api/admin/logout','POST',{})).cookie.includes('Max-Age=0'),true);
  });
+ await withServer(backend,async call=>{
+  const login=await call('/api/login','POST',{email:'owner@example.com',password:'test-password'},{Origin:'https://nuvora.lidetdigital.com'});
+  assert.equal(login.status,200,'the storefront domain remains allowed when PUBLIC_ORIGIN is missing or misconfigured');
+ },{PUBLIC_ORIGIN:''});
 });
 test('cloud checkout delegates pricing to a database transaction, strips client totals and hashes tracking tokens',async()=>{
  let args,rateCalls=0,rateArgs;

@@ -4,6 +4,7 @@ import {pushReady,workerAuthorized,validateSubscription,dispatchPush,sendPush} f
 import { HttpError, validateMenu, validateOrder, validateSettings, validateContent, validateAdminAction, withContent } from './validation.mjs';
 
 const statuses=['Received','Preparing','Ready for pickup','Out for delivery','Completed','Cancelled'];
+const storefrontOrigin='https://nuvora.lidetdigital.com';
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
 async function readBody(req) {
   if (!String(req.headers['content-type'] || '').startsWith('application/json')) throw new HttpError(415,'Send JSON data');
@@ -23,7 +24,7 @@ export function createCloudHandler({env=process.env,backend,pushSender=sendPush}
       const route=url.pathname==='/api/index' && url.searchParams.has('route') ? '/api/'+url.searchParams.get('route') : url.pathname;
       const mutation=!['GET','HEAD'].includes(req.method);
       if(mutation && req.headers.origin) {
-        const allowed=[env.PUBLIC_ORIGIN,env.VERCEL_URL && `https://${env.VERCEL_URL}`,
+        const allowed=[env.PUBLIC_ORIGIN,storefrontOrigin,env.VERCEL_URL && `https://${env.VERCEL_URL}`,
           !env.VERCEL && `http://${req.headers.host}`].filter(Boolean);
         if(!allowed.includes(req.headers.origin))throw new HttpError(403,'Invalid request origin');
       }
