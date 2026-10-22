@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "Nuvora · Takeaway & delivery",
+  "short_name": "Nuvora",
+  "description": "Order freshly prepared food from Nuvora in Addis Ababa.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#ffb51b",
+  "icons": [
+    {
+      "src": "/assets/nuvora-pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/nuvora-pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

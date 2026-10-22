@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffb51b"><meta name="description" content="Nuvora takeaway and delivery in Addis Ababa. Browse the menu and order for pickup or delivery.">
-  <title>Nuvora · Takeaway & delivery</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/layout.css"><script type="module" src="/app.js"></script>
+  <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Nuvora"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" href="/assets/nuvora-pwa-192.png"><link rel="apple-touch-icon" href="/assets/nuvora-pwa-192.png">
+  <title>Nuvora · Takeaway & delivery</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/layout.css"><script type="module" src="/app.js"></script><script type="module" src="/pwa.js"></script>
 </head>
 <body class="storefront">
 <a class="skip-link" href="#main">Skip to menu</a>
@@ -15,7 +17,7 @@
   <a class="owner-link" href="/admin"><span data-icon="settings"></span>Restaurant sign in</a>
 </aside>
 <div class="store-workspace">
-  <header class="topbar"><img class="mobile-brand" data-brand-logo src="/assets/nuvora-logo.png" alt="Nuvora Takeaway and Delivery"><div class="location"><span class="location-icon" data-icon="pin"></span><div><small>PICKUP FROM</small><strong id="header-address">Bole, Selam City Mall</strong></div></div><label class="search-field"><span data-icon="search"></span><input id="search" type="search" placeholder="What are you craving?" aria-label="Search the menu"></label><button class="icon-button bag-shortcut" id="open-bag" aria-label="Open your bag"><span data-icon="bag"></span><b id="count">0</b></button></header>
+  <header class="topbar"><img class="mobile-brand" data-brand-logo src="/assets/nuvora-logo.png" alt="Nuvora Takeaway and Delivery"><div class="location"><span class="location-icon" data-icon="pin"></span><div><small>PICKUP FROM</small><strong id="header-address">Bole, Selam City Mall</strong></div></div><label class="search-field"><span data-icon="search"></span><input id="search" type="search" placeholder="What are you craving?" aria-label="Search the menu"></label><button class="install-app" id="install-app" type="button" aria-label="Install Nuvora app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3"/></svg><span>Install app</span></button><button class="icon-button bag-shortcut" id="open-bag" aria-label="Open your bag"><span data-icon="bag"></span><b id="count">0</b></button></header>
   <main id="main" class="store-main">
     <div id="browse-view" class="store-view">
       <div class="greeting"><div><p class="eyebrow">A LITTLE HUNGRY?</p><h1>Let's find something delicious<span>.</span></h1></div><span class="status-pill" id="kitchen-status">Checking kitchen…</span></div>
