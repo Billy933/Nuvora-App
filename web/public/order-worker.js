@@ -1,6 +1,6 @@
 // Cache only the public storefront shell. Order, account, and admin traffic stays network-only.
 const CACHE_NAME='nuvora-storefront-shell-v1';
-const SHELL=['/offline.html','/style.css','/layout.css','/app.js','/ui.js','/assets/nuvora-logo.png','/assets/nuvora-pwa-192.png','/assets/nuvora-pwa-512.png'];
+const SHELL=['/offline.html','/style.css','/layout.css','/app.js','/ui.js','/assets/nuvora-logo.png','/assets/nuvora-pwa-192.png','/assets/nuvora-pwa-512.png','/assets/category-pizza.png','/assets/category-burgers.png','/assets/category-pasta.png','/assets/category-chicken.png','/assets/category-sides.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE_NAME);
   await cache.addAll(SHELL);
