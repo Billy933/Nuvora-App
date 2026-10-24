@@ -2,6 +2,7 @@ package com.example.deliveryapp
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
@@ -17,6 +18,7 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : ComponentActivity() {
@@ -24,6 +26,14 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.decorView.setBackgroundColor(Color.WHITE)
+        window.statusBarColor = Color.WHITE
+        window.navigationBarColor = Color.WHITE
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
         webView = WebView(this)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
@@ -52,7 +62,11 @@ class MainActivity : ComponentActivity() {
         }
         ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            val params = view.layoutParams as? ViewGroup.MarginLayoutParams
+            if (params != null) {
+                params.setMargins(bars.left, bars.top, bars.right, bars.bottom)
+                view.layoutParams = params
+            }
             insets
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -81,6 +95,7 @@ class MainActivity : ComponentActivity() {
     private fun showWebView() {
         (webView.parent as? ViewGroup)?.removeView(webView)
         setContentView(webView)
+        ViewCompat.requestApplyInsets(webView)
     }
     override fun onSaveInstanceState(outState: Bundle) {
         webView.saveState(outState)
