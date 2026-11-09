@@ -13,6 +13,15 @@ test('menu authorization, CRUD, server pricing, checkout validation, order priva
   assert.equal((await call('/api/login','POST',{password:'wrong'})).status,401);
   const login=await call('/api/login','POST',{password:'test-password'});assert.equal(login.status,200);cookie=login.cookie.split(';')[0];
   const settings=(await call('/api/settings')).data;
+  assert.equal(settings.telebirr_phone,'+251919158071');
+  assert.equal(settings.cbe_account,'1000012315554');
+  const paymentSettings={...settings,telebirr_phone:'0911234567',cbe_account:'1000098765432'};
+  assert.equal((await call('/api/admin/settings','PUT',paymentSettings,false)).status,401);
+  assert.equal((await call('/api/admin/settings','PUT',paymentSettings)).status,200);
+  const savedPayments=(await call('/api/settings')).data;
+  assert.equal(savedPayments.telebirr_phone,paymentSettings.telebirr_phone);
+  assert.equal(savedPayments.cbe_account,paymentSettings.cbe_account);
+  for(const invalid of [{telebirr_phone:'123'},{cbe_account:'abc'},{cbe_account:1000012315554}])assert.equal((await call('/api/admin/settings','PUT',{...settings,...invalid})).status,400);
   const editedContent={...settings.content,restaurant_name:'Test kitchen',hero_title:'Fresh today',logo_image:'data:image/png;base64,aGVsbG8='};
   assert.equal((await call('/api/admin/content','PUT',editedContent,false)).status,401);
   for(const [path,payload] of [['/api/admin/content',editedContent],['/api/admin/settings',{...settings,pickup_address:'Untrusted address'}]]) {

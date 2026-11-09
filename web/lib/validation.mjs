@@ -1,5 +1,6 @@
 export const defaultSettings = Object.freeze({
   pickup_address: 'Bole, Selam City Mall', contact_phone: '+251919158071',
+  telebirr_phone: '+251919158071', cbe_account: '1000012315554',
   opening_time: '07:00', closing_time: '23:00', accepting_orders: false,
   delivery_max_km: 50, nearby_limit_km: 15, nearby_rate: 500, far_rate: 1000,
   delivery_pricing_confirmed: false
@@ -62,6 +63,7 @@ export function validateSettings(s) {
       !Number.isSafeInteger(s.far_rate) || s.far_rate < s.nearby_rate || s.far_rate > 100000) {
     throw new HttpError(400, 'Check restaurant details, hours, coverage and delivery rates');
   }
+  if(typeof s.telebirr_phone!=='string' || !/^(?:\+251|0)[79]\d{8}$/.test(s.telebirr_phone) || typeof s.cbe_account!=='string' || !/^\d{10,20}$/.test(s.cbe_account))throw new HttpError(400,'Enter a valid Telebirr mobile number and a CBE account with 10 to 20 digits');
   return Object.fromEntries(Object.keys(defaultSettings).map(k => [k, s[k]]));
 }
 export function validateMenu(m) {
