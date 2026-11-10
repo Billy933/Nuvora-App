@@ -38,10 +38,15 @@ test('menu authorization, CRUD, server pricing, checkout validation, order priva
   assert.equal((await call('/api/admin/settings','PUT',{...settings,accepting_orders:false})).status,200);
   const item={name:'Test dish',category:'Mains',description:'Test only',price:25000,image:'/menu-items/classic-burger.jpg',available:true};
   const added=await call('/api/admin/menu','POST',item);assert.equal(added.status,201);const id=added.data.id;
-  const order={name:'Test Customer',phone:'0911234567',mode:'pickup',items:[{id,quantity:2,price:1}],total:2};
+  const order={transaction_reference:'FT26123456',payment_screenshot:'data:image/png;base64,iVBORw0KGgo=',name:'Test Customer',phone:'0911234567',mode:'pickup',items:[{id,quantity:2,price:1}],total:2};
   assert.equal((await call('/api/orders','POST',order)).status,400);
   assert.equal((await call('/api/admin/settings','PUT',{...settings,accepting_orders:true})).status,200);
   const placed=await call('/api/orders','POST',order);assert.equal(placed.status,201);assert.equal(placed.data.total,50000);
+  const adminOrders=(await call('/api/admin/orders')).data;
+  const savedProof=adminOrders.find(o=>o.id===placed.data.id);
+  assert.equal(savedProof.transaction_reference,order.transaction_reference);
+  assert.equal(savedProof.payment_screenshot,order.payment_screenshot);
+  for(const invalid of [{transaction_reference:'x'.repeat(101)},{payment_screenshot:'data:text/html;base64,YQ=='},{payment_screenshot:'x'.repeat(670001)}])assert.equal((await call('/api/orders','POST',{...order,...invalid})).status,400);
   assert.equal((await call('/api/orders/'+placed.data.id+'?token=incorrect')).status,404);
   assert.equal((await call(`/api/orders/${placed.data.id}?token=${placed.data.token}`)).data.status,'Received');
   assert.equal((await call('/api/orders','POST',{...order,mode:'delivery'})).status,400);

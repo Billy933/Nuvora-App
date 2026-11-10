@@ -77,6 +77,7 @@ export function validateMenu(m) {
 }
 export function validateOrder(o) {
   if(!o || typeof o!=='object')throw new HttpError(400,'Invalid order');
+  const proof=validatePaymentProof(o);
   if (!['pickup','delivery'].includes(o.mode) || typeof o.name !== 'string' || !o.name.trim() || o.name.length > 120 ||
       !/^(?:\+251|0)[79]\d{8}$/.test(o.phone || '') ||
       (o.mode === 'delivery' && (typeof o.address !== 'string' || o.address.trim().length < 8 || o.address.length > 1000)) ||
@@ -86,5 +87,12 @@ export function validateOrder(o) {
       new Set(o.items.map(i => i.id)).size !== o.items.length) {
     throw new HttpError(400, 'Check your contact details, address and cart quantities');
   }
-  return {name:o.name.trim(),phone:o.phone,mode:o.mode,address:o.mode==='delivery'?o.address.trim():'',notes:o.notes || '',items:o.items.map(({id,quantity})=>({id,quantity}))};
+  return {...proof,name:o.name.trim(),phone:o.phone,mode:o.mode,address:o.mode==='delivery'?o.address.trim():'',notes:o.notes || '',items:o.items.map(({id,quantity})=>({id,quantity}))};
+}
+
+export function validatePaymentProof(o) {
+ const reference=o.transaction_reference??'', screenshot=o.payment_screenshot??'';
+ if(typeof reference!=='string'||reference.length>100)throw new HttpError(400,'Transaction reference must be 100 characters or fewer');
+ if(typeof screenshot!=='string'||screenshot.length>670000||(screenshot&&!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(screenshot)))throw new HttpError(400,'Attach a JPEG, PNG, or WebP screenshot smaller than 500 KB');
+ return {transaction_reference:reference.trim(),payment_screenshot:screenshot};
 }

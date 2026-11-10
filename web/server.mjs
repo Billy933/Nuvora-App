@@ -5,7 +5,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createCloudHandler } from './lib/cloud-handler.mjs';
-import { defaultSettings, validateSettings, validateContent, withContent } from './lib/validation.mjs';
+import { defaultSettings, validatePaymentProof, validateSettings, validateContent, withContent } from './lib/validation.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 mkdirSync(path.join(root,'data'), {recursive:true});
@@ -47,9 +47,9 @@ export const server = http.createServer(async (req,res) => {
   if(route==='/api/orders' && req.method==='POST') {
    const settings=JSON.parse(db.prepare('SELECT payload FROM restaurant_settings WHERE id=1').get().payload);
    if(!settings.accepting_orders)return send(res,400,{error:'The kitchen is closed for orders right now'});
-   const o=await body(req);if(!['pickup','delivery'].includes(o.mode) || typeof o.name!=='string' || !o.name.trim() || o.name.length>120 || !/^(?:\+251|0)[79]\d{8}$/.test(o.phone||'') || (o.mode==='delivery' && (typeof o.address!=='string' || o.address.trim().length<8)) || !Array.isArray(o.items) || !o.items.length || o.items.length>50 || String(o.notes||'').length>1000) return send(res,400,{error:'Enter your name, Ethiopian mobile number, and delivery address where required'});
+   const o=await body(req);const proof=validatePaymentProof(o);if(!['pickup','delivery'].includes(o.mode) || typeof o.name!=='string' || !o.name.trim() || o.name.length>120 || !/^(?:\+251|0)[79]\d{8}$/.test(o.phone||'') || (o.mode==='delivery' && (typeof o.address!=='string' || o.address.trim().length<8)) || !Array.isArray(o.items) || !o.items.length || o.items.length>50 || String(o.notes||'').length>1000) return send(res,400,{error:'Enter your name, Ethiopian mobile number, and delivery address where required'});
    const items=o.items.map(i=>{const m=db.prepare('SELECT * FROM menu WHERE id=? AND available=1').get(i.id);if(!m || !Number.isInteger(i.quantity) || i.quantity<1 || i.quantity>30) throw Error('An item is unavailable or has an invalid quantity');return {id:m.id,name:m.name,price:m.price,quantity:i.quantity};});
-   const payload={name:o.name.trim(),phone:o.phone,mode:o.mode,address:o.mode==='delivery'?String(o.address).slice(0,1000):'',notes:String(o.notes||''),items,total:items.reduce((s,i)=>s+i.price*i.quantity,0)};const id=randomBytes(6).toString('hex').toUpperCase(), token=randomBytes(24).toString('hex');db.prepare('INSERT INTO orders VALUES(?,?,?,?,?)').run(id,token,new Date().toISOString(),'Received',JSON.stringify(payload));return send(res,201,{id,token,status:'Received',...payload});
+   const payload={...proof,name:o.name.trim(),phone:o.phone,mode:o.mode,address:o.mode==='delivery'?String(o.address).slice(0,1000):'',notes:String(o.notes||''),items,total:items.reduce((s,i)=>s+i.price*i.quantity,0)};const id=randomBytes(6).toString('hex').toUpperCase(), token=randomBytes(24).toString('hex');db.prepare('INSERT INTO orders VALUES(?,?,?,?,?)').run(id,token,new Date().toISOString(),'Received',JSON.stringify(payload));return send(res,201,{id,token,status:'Received',...payload});
   }
   if(route.startsWith('/api/orders/') && req.method==='GET') {const o=db.prepare('SELECT id,status FROM orders WHERE id=? AND token=?').get(route.split('/').pop(),url.searchParams.get('token'));return send(res,o?200:404,o||{error:'Order not found'});}
   if(route.startsWith('/api/')) return send(res,404,{error:'Not found'});
